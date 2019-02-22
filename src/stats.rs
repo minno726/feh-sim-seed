@@ -10,5 +10,5 @@ pub(crate) fn percentile(pct: f32) -> u32 {
             return key;
         }
     }
-    *data.values().next_back().unwrap()
+    *data.values().next_back().unwrap_or(&0)
 }

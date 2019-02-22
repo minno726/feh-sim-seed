@@ -89,13 +89,8 @@ pub fn run(num_samples: u32, goal_kind: u8, count: u32) {
 }
 
 #[wasm_bindgen]
-pub fn results() -> String {
-    let percentiles = [0.25, 0.5, 0.75, 0.9, 0.99];
-    let mut retval = String::new();
-    for &pct in &percentiles {
-        retval.push_str(&format!("\n{}: {}", pct, stats::percentile(pct)));
-    }
-    retval
+pub fn results(percentiles: &[f32]) -> Vec<u32> {
+    percentiles.iter().cloned().map(stats::percentile).collect()
 }
 
 #[wasm_bindgen]

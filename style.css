@@ -21,3 +21,15 @@ h1,h2,h3 {
 header {
     text-align: end;
 }
+
+input.small_number {
+    width: 3em;
+}
+
+#goal {
+    width: 12em;
+}
+
+#content > div {
+    padding: 0.5em 0;
+}

@@ -9,9 +9,9 @@ license = "MIT"
 crate-type = ["cdylib"]
 
 [dependencies]
-seed = "0.2.8"
 wasm-bindgen = "0.2.37"
 num_enum = "0.1.1"
+lazy_static = "1.2.0"
 
 [dependencies.web-sys]
 version = "0.3.14"

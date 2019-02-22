@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -13,24 +14,34 @@
     <title>FEH Summoning Sim</title>
 
 </head>
+
 <body>
-<section id="app"></section>
+    <header>
+        v0.0.2 <a href="/changelog.html">Changelog</a>
+    </header>
+    <div id="content">
+        <button id="run">Run</button>
+        <div id="goal_selector">
+            <select id="goal">
+                <option value="0">Any 5*</option>
+                <option value="1">Any focus</option>
+                <option value="2">Red focus</option>
+                <option value="3">Blue focus</option>
+                <option value="4">Green focus</option>
+                <option value="5">Any focus</option>
+            </select>
+            <input id="goal_count" type="number" value="1"></input>
+        </div>
+        <div id="banner_selector"></div>
+        <div id="results"></div>
+    </div>
 
-<script src='/pkg/package.js'></script>
+    <script src='/pkg/package.js'></script>
 
-<script>
-    // the `wasm_bindgen` global is set to the exports of the Rust module
-    const { render } = wasm_bindgen;
-    // we'll defer our execution until the wasm is ready to go
-    function run() {
-        render();
-    }
-    // here we tell bindgen the path to the wasm file so it can run
-    // initialization and return to us a promise when it's done
-    wasm_bindgen('/pkg/package_bg.wasm')
-        .then(run)
-        .catch(console.error);
-</script>
+    <script src="/init.js">
+
+    </script>
 
 </body>
+
 </html>

@@ -17,7 +17,7 @@
 
 <body>
     <header>
-        v0.0.2 <a href="/changelog.html">Changelog</a>
+        v0.0.3 <a href="/changelog.html">Changelog</a>
     </header>
     <div id="content">
         <div id="goal_selector">
@@ -46,14 +46,19 @@
         <div>
             <button id="run">Run</button>
         </div>
-        <div id="results"></div>
+        <div id="results" class="no-select">
+            <svg id="graph" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+                <path id="graph_line" d="" />
+                <text id="graph_sample_count" dominant-baseline="hanging" font-size="10%"></text>
+                <g id="graph_highlights"></g>
+            </svg>
+            <div id="results_pct"></div>
+        </div>
     </div>
 
     <script src='/pkg/package.js'></script>
 
-    <script src="/init.js">
-
-    </script>
+    <script src="/init.js"></script>
 
 </body>
 

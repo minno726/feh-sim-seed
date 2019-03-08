@@ -97,3 +97,8 @@ pub fn results(percentiles: &[f32]) -> Vec<u32> {
 pub fn clear_data() {
     DATA.lock().unwrap().clear();
 }
+
+#[wasm_bindgen]
+pub fn num_trials() -> u32 {
+    DATA.lock().unwrap().values().sum()
+}

@@ -33,3 +33,17 @@ input.small_number {
 #content > div {
     padding: 0.5em 0;
 }
+
+#graph {
+    border: 1px solid black;
+}
+
+#graph_line {
+    fill: none;
+    stroke: black;
+    stroke-width: 0.5px;
+}
+
+#graph_highlights > circle {
+    fill: rgb(206, 40, 40);
+}

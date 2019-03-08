@@ -51,8 +51,11 @@ function updateGoalList() {
 
 function clearData() {
     wasm_bindgen.clear_data();
-    document.getElementById("results").innerText = "";
+    document.getElementById("results_pct").innerHTML = "";
     document.getElementById("run").innerText = "Run";
+    document.getElementById("graph_line").setAttribute("d", "");
+    document.getElementById("graph_highlights").innerHTML = "";
+    document.getElementById("graph_sample_count").innerHTML = "";
 }
 
 function gatherData() {
@@ -64,17 +67,52 @@ function gatherData() {
         wasm_bindgen.run(num_runs, goal, count);
         num_runs *= 2;
     }
-    let percentiles = [0.25, 0.5, 0.75, 0.9, 0.99];
-    let results = wasm_bindgen.results(percentiles);
-    let ul = document.createElement("ul");
-    for (let i = 0; i < results.length; ++i) {
-        let li = document.createElement("li");
-        li.innerHTML = percentiles[i] * 100 + '%: ' + results[i];
-        ul.appendChild(li);
-    }
-    document.getElementById("results").innerHTML = "Results:";
-    document.getElementById("results").appendChild(ul);
     document.getElementById("run").innerText = "More";
+    drawGraph();
+}
+
+function drawGraph() {
+    let percentiles = Array(1000);
+    for (let i = 0; i < percentiles.length; ++i) {
+        percentiles[i] = i / percentiles.length;
+    }
+    let results = wasm_bindgen.results(percentiles);
+    let xmin = 0;
+    let ymin = 0;
+    let xmax = 100;
+    let ymax = 60;
+    let x = (pct) => pct * (xmax - xmin) + xmin;
+    let y = (val) => ymax - (val / results[results.length - 1] * (ymax - ymin) + ymin);
+    let path = `M ${x(0)} ${y(results[0])} `;
+    for (let i = 1; i < results.length; ++i) {
+        if (results[i] != results[i - 1]) {
+            path += `L ${x(percentiles[i])} ${y(results[i])} `;
+        }
+    }
+
+    document.getElementById("graph_highlights").innerHTML = "";
+    let highlight_percentiles = [0.25, 0.5, 0.75, 0.9, 0.99];
+    highlights = wasm_bindgen.results(highlight_percentiles);
+    for (let i = 0; i < highlights.length; ++i) {
+        let dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        dot.setAttribute("cx", x(highlight_percentiles[i]));
+        dot.setAttribute("cy", y(highlights[i]));
+        dot.setAttribute("r", "0.75px");
+
+        let text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.innerHTML = `${highlight_percentiles[i] * 100}%: ${highlights[i]}`;
+        text.setAttribute("dx", x(highlight_percentiles[i]) - 1);
+        text.setAttribute("dy", y(highlights[i]) - 1);
+        text.setAttribute("text-anchor", "end");
+        text.setAttribute("font-size", "15%");
+        document.getElementById("graph_highlights").appendChild(dot);
+        document.getElementById("graph_highlights").appendChild(text);
+    }
+
+    let sample_count = wasm_bindgen.num_trials();
+    document.getElementById("graph_sample_count").innerHTML = `${sample_count} samples`;
+
+    document.getElementById("graph_line").setAttribute("d", path);
 }
 
 function registerEvents() {

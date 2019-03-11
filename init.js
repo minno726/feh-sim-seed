@@ -1,4 +1,4 @@
-wasm_bindgen('/pkg/package_bg.wasm')
+wasm_bindgen('pkg/package_bg.wasm')
     .then(registerEvents)
     .catch(console.error);
 

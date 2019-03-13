@@ -100,7 +100,7 @@ function drawGraph() {
         dot.setAttribute("r", "0.75px");
 
         let text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.innerHTML = `${highlight_percentiles[i] * 100}%: ${highlights[i]}`;
+        text.innerHTML = `${highlight_percentiles[i] * 100}%: ${highlights[i]} orbs`;
         text.setAttribute("dx", x(highlight_percentiles[i]) - 1);
         text.setAttribute("dy", y(highlights[i]) - 1);
         text.setAttribute("text-anchor", "end");

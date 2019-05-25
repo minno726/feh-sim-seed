@@ -1,104 +1,211 @@
-use wasm_bindgen::prelude::*;
+#[macro_use]
+extern crate seed;
+use seed::prelude::*;
 
-use lazy_static::lazy_static;
+use std::convert::TryFrom;
 
-use std::collections::BTreeMap;
-use std::sync::Mutex;
+mod banner;
+use banner::{Banner, BannerChangeKind};
 
-use rand::rngs::SmallRng;
-use rand::FromEntropy;
+mod goal;
+use goal::{Goal, GoalChangeKind};
 
-mod weighted_choice;
-use weighted_choice::WeightedIndex4;
+mod results;
 
 mod sim;
+use sim::Sim;
+
+mod weighted_choice;
+
 mod stats;
 
-#[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, num_enum::IntoPrimitive, num_enum::CustomTryInto)]
-enum Pool {
-    Focus,
-    Fivestar,
-    Fourstar,
-    Threestar,
-}
+mod counter;
+use counter::Counter;
+
+// Model
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, num_enum::IntoPrimitive, num_enum::CustomTryInto)]
-enum Color {
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Color {
     Red,
     Blue,
     Green,
     Colorless,
 }
 
-#[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug, num_enum::IntoPrimitive, num_enum::CustomTryInto)]
-pub enum GoalKind {
-    AnyFivestar,
-    AnyFocus,
-    RedFocus,
-    BlueFocus,
-    GreenFocus,
-    ColorlessFocus,
-}
+impl TryFrom<u8> for Color {
+    type Error = ();
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub struct Goal {
-    kind: GoalKind,
-    count: u32,
-}
-
-lazy_static! {
-    static ref DATA: Mutex<BTreeMap<u32, u32>> = Mutex::new(BTreeMap::new());
-    static ref RNG: Mutex<SmallRng> = Mutex::new(SmallRng::from_entropy());
-    static ref POOL_SIZES: [[u8; 4]; 4] = [
-        [0, 0, 0, 0],
-        [41, 28, 21, 17],
-        [32, 29, 20, 28],
-        [28, 25, 18, 25],
-    ];
-    static ref POOL_DISTS: Mutex<[WeightedIndex4; 26]> =
-        Mutex::new([WeightedIndex4::default(); 26]);
-    static ref COLOR_DISTS: Mutex<[WeightedIndex4; 4]> = Mutex::new([WeightedIndex4::default(); 4]);
-    static ref FOCUS_SIZES: Mutex<[u8; 4]> = Mutex::new([1; 4]);
-    static ref STARTING_RATES: Mutex<(u8, u8)> = Mutex::new((3, 3));
-}
-
-#[wasm_bindgen]
-pub fn init_banner(r: u8, b: u8, g: u8, c: u8, rate_f: u8, rate_5: u8) -> bool {
-    DATA.lock().unwrap().clear();
-    *FOCUS_SIZES.lock().unwrap() = [r, b, g, c];
-    *STARTING_RATES.lock().unwrap() = (rate_f, rate_5);
-
-    sim::init_probability_tables();
-
-    true
-}
-
-#[wasm_bindgen]
-pub fn run(num_samples: u32, goal_kind: u8, count: u32) {
-    let kind = goal_kind
-        .try_into_GoalKind()
-        .unwrap_or(GoalKind::AnyFivestar);
-    let mut results = DATA.lock().unwrap();
-    for _ in 0..num_samples {
-        let result = sim::roll_until(Goal { kind, count });
-        *results.entry(result).or_insert(0) += 1;
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        use Color::*;
+        Ok(match value {
+            0 => Red,
+            1 => Blue,
+            2 => Green,
+            3 => Colorless,
+            _ => return Err(()),
+        })
     }
 }
 
-#[wasm_bindgen]
-pub fn results(percentiles: &[f32]) -> Vec<u32> {
-    percentiles.iter().cloned().map(stats::percentile).collect()
+#[repr(u8)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum Pool {
+    Focus,
+    Fivestar,
+    Fourstar,
+    Threestar,
+}
+
+impl TryFrom<u8> for Pool {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        use Pool::*;
+        Ok(match value {
+            0 => Focus,
+            1 => Fivestar,
+            2 => Fourstar,
+            3 => Threestar,
+            _ => return Err(()),
+        })
+    }
+}
+
+#[derive(Default, Debug)]
+struct Model {
+    pub data: Counter,
+    pub banner: Banner,
+    pub goal: Goal,
+}
+
+// Update
+
+#[derive(Clone, Debug)]
+pub enum Msg {
+    Run,
+    BannerChange {
+        text: String,
+        kind: BannerChangeKind,
+    },
+    GoalChange {
+        text: String,
+        kind: GoalChangeKind,
+    },
+}
+
+fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
+    log!(msg);
+    match msg {
+        Msg::BannerChange {
+            text,
+            kind: BannerChangeKind::FocusSize(idx),
+        } => {
+            if let Ok(num) = text.parse::<u8>() {
+                model.banner.focus_sizes[idx] = num;
+                model.data.clear();
+            }
+        }
+        Msg::BannerChange {
+            text,
+            kind: BannerChangeKind::StartingRates,
+        } => {
+            let mut numbers = text.split_whitespace();
+            let mut nextnum = || -> Option<u8> { Some(numbers.next()?.parse::<u8>().ok()?) };
+            if let (Some(first), Some(second)) = (nextnum(), nextnum()) {
+                model.banner.starting_rates.0 = first;
+                model.banner.starting_rates.1 = second;
+                model.data.clear();
+                if (first, second) == (8, 0) {
+                    // Special handling for legendary banners, since they
+                    // always have the same focus pool sizes.
+                    model.banner.focus_sizes = [3, 3, 3, 3];
+                }
+            }
+        }
+        Msg::Run => {
+            let mut sim = Sim::new(model.banner, model.goal.clone());
+            let mut limit = 100;
+            let perf = seed::window().performance().unwrap();
+            let start = perf.now();
+            while perf.now() - start < 500.0 {
+                for _ in 0..limit {
+                    let result = sim.roll_until_goal();
+                    model.data[result] += 1;
+                }
+                limit *= 2;
+            }
+
+            log!(format!(
+                "{} ({})",
+                stats::percentile(&model.data, 0.5),
+                model.data.iter().sum::<u32>()
+            ));
+        }
+        Msg::GoalChange {
+            text,
+            kind: GoalChangeKind::Color,
+        } => {
+            let value = text
+                .parse::<u8>()
+                .ok()
+                .and_then(|id| Color::try_from(id).ok());
+            if let Some(color) = value {
+                if model.banner.focus_sizes[color as usize] > 0 {
+                    model.goal.goals[0] = goal::GoalPart {
+                        unit_color: color,
+                        num_copies: 1,
+                    };
+                }
+                model.data.clear();
+            }
+        }
+        Msg::GoalChange {
+            text,
+            kind: GoalChangeKind::Quantity,
+        } => {
+            let value = text.parse::<u8>();
+            if let Ok(quantity) = value {
+                model.goal.goals[0].num_copies = quantity;
+                model.data.clear();
+            }
+        }
+    }
+    //log!(model);
+}
+
+// View
+
+fn view(model: &Model) -> Vec<El<Msg>> {
+    vec![
+        header![
+            a![
+                "Help",
+                attrs! [
+                    At::Href => "help.html";
+                ],
+            ],
+            " | v0.0.3 ",
+            a![
+                "Changelog",
+                attrs![
+                    At::Href => "changelog.html";
+                ],
+            ],
+        ],
+        div![
+            id!["content"],
+            goal::goal_selector(&model.goal, &model.banner),
+            banner::banner_selector(&model.banner),
+            div![simple_ev(Ev::Click, Msg::Run), button!["Run"]],
+            results::results(&model.data),
+        ],
+    ]
 }
 
 #[wasm_bindgen]
-pub fn clear_data() {
-    DATA.lock().unwrap().clear();
-}
-
-#[wasm_bindgen]
-pub fn num_trials() -> u32 {
-    DATA.lock().unwrap().values().sum()
+pub fn render() {
+    seed::App::build(Model::default(), update, view)
+        .finish()
+        .run();
 }

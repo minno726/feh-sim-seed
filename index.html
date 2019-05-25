@@ -17,49 +17,17 @@
 </head>
 
 <body>
-    <header>
-        <a href="help.html">Help</a> | v0.0.3 <a href="changelog.html">Changelog</a>
-    </header>
-    <div id="content">
-        <div id="goal_selector">
-            <select id="goal">
-            </select>
-            <label for="goal_count">Count: </label>
-            <input id="goal_count" type="number" value=1 class="small_number" min=1 required></input>
-        </div>
-        <div id="banner_selector">
-            <select id="starting_rates">
-                <option value="3 3">3%/3% (Normal)</option>
-                <option value="5 3">5%/3% (Hero Fest)</option>
-                <option value="8 0">8%/0% (Legendary)</option>
-            </select>
-            <div id="focus_counts">
-                <label for="focus_count_r">R:</label>
-                <input id="focus_count_r" type="number" class="small_number" value=1 min=0 required></input>
-                <label for="focus_count_b">B:</label>
-                <input id="focus_count_b" type="number" class="small_number" value=1 min=0 required></input>
-                <label for="focus_count_g">G:</label>
-                <input id="focus_count_g" type="number" class="small_number" value=1 min=0 required></input>
-                <label for="focus_count_c">C:</label>
-                <input id="focus_count_c" type="number" class="small_number" value=1 min=0 required></input>
-            </div>
-        </div>
-        <div>
-            <button id="run">Run</button>
-        </div>
-        <div id="results" class="no-select">
-            <svg id="graph" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
-                <path id="graph_line" d="" />
-                <text id="graph_sample_count" dominant-baseline="hanging" font-size="10%"></text>
-                <g id="graph_highlights"></g>
-            </svg>
-            <div id="results_pct"></div>
-        </div>
-    </div>
+    <section id="app"></section>
 
-    <script src='pkg/package.js'></script>
+    <script src='pkg/feh_sim_seed.js'></script>
 
-    <script src="init.js"></script>
+    <script>
+        const { render } = wasm_bindgen;
+
+        wasm_bindgen('pkg/feh_sim_seed_bg.wasm')
+            .then(render)
+            .catch(console.error);
+    </script>
 
 </body>
 

@@ -8,7 +8,7 @@ mod banner;
 use banner::{Banner, BannerChangeKind};
 
 mod goal;
-use goal::{Goal, GoalChangeKind};
+use goal::{Goal, GoalChangeKind, GoalPreset};
 
 mod results;
 
@@ -99,10 +99,10 @@ fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
     match msg {
         Msg::BannerChange {
             text,
-            kind: BannerChangeKind::FocusSize(idx),
+            kind: BannerChangeKind::FocusSize(color),
         } => {
             if let Ok(num) = text.parse::<u8>() {
-                model.banner.focus_sizes[idx] = num;
+                model.banner.focus_sizes[color as usize] = num;
                 model.data.clear();
             }
         }
@@ -111,23 +111,33 @@ fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
             kind: BannerChangeKind::StartingRates,
         } => {
             let mut numbers = text.split_whitespace();
-            let mut nextnum = || -> Option<u8> { Some(numbers.next()?.parse::<u8>().ok()?) };
+            let mut nextnum = || Some(numbers.next()?.parse::<u8>().ok()?);
             if let (Some(first), Some(second)) = (nextnum(), nextnum()) {
                 model.banner.starting_rates.0 = first;
                 model.banner.starting_rates.1 = second;
                 model.data.clear();
                 if (first, second) == (8, 0) {
-                    // Special handling for legendary banners, since they
+                    // Convenient handling for legendary banners, since they
                     // always have the same focus pool sizes.
                     model.banner.focus_sizes = [3, 3, 3, 3];
                 }
             }
         }
         Msg::Run => {
+            // Ensure that the controls are in sync
+            model.goal.set_preset(&model.banner, model.goal.preset);
+            if !model.goal.is_available(&model.banner) {
+                return;
+            }
             let mut sim = Sim::new(model.banner, model.goal.clone());
             let mut limit = 100;
             let perf = seed::window().performance().unwrap();
             let start = perf.now();
+
+            // Exponential increase with a loose target of 1000 ms of calculation.
+            // Time per simulation varies wildly depending on device performance
+            // and sim parameters, so it starts with a very low number and goes
+            // from there.
             while perf.now() - start < 500.0 {
                 for _ in 0..limit {
                     let result = sim.roll_until_goal();
@@ -135,30 +145,22 @@ fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
                 }
                 limit *= 2;
             }
-
-            log!(format!(
-                "{} ({})",
-                stats::percentile(&model.data, 0.5),
-                model.data.iter().sum::<u32>()
-            ));
         }
         Msg::GoalChange {
             text,
-            kind: GoalChangeKind::Color,
+            kind: GoalChangeKind::Preset,
         } => {
             let value = text
                 .parse::<u8>()
                 .ok()
-                .and_then(|id| Color::try_from(id).ok());
-            if let Some(color) = value {
-                if model.banner.focus_sizes[color as usize] > 0 {
-                    model.goal.goals[0] = goal::GoalPart {
-                        unit_color: color,
-                        num_copies: 1,
-                    };
+                .and_then(|id| GoalPreset::try_from(id).ok());
+            if let Some(preset) = value {
+                if preset.is_available(&model.banner) {
+                    model.goal.set_preset(&model.banner, preset);
                 }
                 model.data.clear();
             }
+            log!(model.goal);
         }
         Msg::GoalChange {
             text,
@@ -171,7 +173,6 @@ fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
             }
         }
     }
-    //log!(model);
 }
 
 // View
@@ -197,7 +198,17 @@ fn view(model: &Model) -> Vec<El<Msg>> {
             id!["content"],
             goal::goal_selector(&model.goal, &model.banner),
             banner::banner_selector(&model.banner),
-            div![simple_ev(Ev::Click, Msg::Run), button!["Run"]],
+            div![
+                simple_ev(Ev::Click, Msg::Run),
+                button![
+                    if !model.goal.is_available(&model.banner) {
+                        attrs![At::Disabled => true]
+                    } else {
+                        attrs![]
+                    },
+                    "Run"
+                ]
+            ],
             results::results(&model.data),
         ],
     ]

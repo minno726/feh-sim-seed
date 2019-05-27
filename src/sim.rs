@@ -6,17 +6,20 @@ use rand::Rng;
 
 use weighted_choice::WeightedIndex4;
 
+use goal::GoalKind;
+
 struct SessionResult {
     chosen_count: u32,
-    goal_count: u8,
     reset: bool,
 }
 
+#[derive(Debug)]
 pub struct Sim {
     banner: Banner,
     goal: Goal,
     tables: RandTables,
     rng: rand::rngs::SmallRng,
+    goal_data: GoalData,
 }
 
 #[derive(Debug, Copy, Clone, Default)]
@@ -26,6 +29,19 @@ struct RandTables {
     color_dists: [WeightedIndex4; 4],
 }
 
+// Scratch space for representing the goal in a way that is faster to work with
+#[derive(Debug, Clone)]
+struct GoalData {
+    pub color_needed: [bool; 4],
+    pub copies_needed: [Vec<u8>; 4],
+}
+
+impl GoalData {
+    fn is_met(&self) -> bool {
+        self.color_needed == [false, false, false, false]
+    }
+}
+
 impl Sim {
     pub fn new(banner: Banner, goal: Goal) -> Self {
         let mut sim = Sim {
@@ -33,6 +49,10 @@ impl Sim {
             goal,
             tables: RandTables::default(),
             rng: rand::rngs::SmallRng::from_entropy(),
+            goal_data: GoalData {
+                color_needed: [false; 4],
+                copies_needed: [vec![], vec![], vec![], vec![]],
+            },
         };
         sim.init_probability_tables();
         sim
@@ -57,11 +77,22 @@ impl Sim {
         }
     }
 
+    fn init_goal_data(&mut self) {
+        self.goal_data.color_needed = [false, false, false, false];
+        for i in 0..4 {
+            self.goal_data.copies_needed[i].clear();
+        }
+        for &goal in &self.goal.goals {
+            self.goal_data.copies_needed[goal.unit_color as usize].push(goal.num_copies);
+            self.goal_data.color_needed[goal.unit_color as usize] = true;
+        }
+    }
+
     // Simulates until reaching the specified goal, then returns # of orbs used
     pub fn roll_until_goal(&mut self) -> u32 {
         let mut pity_count = 0;
         let mut orb_count = 0;
-        let mut curr_goal_count = 0;
+        self.init_goal_data();
         loop {
             let pity_incr = pity_count / 5;
             let samples = [
@@ -73,17 +104,15 @@ impl Sim {
             ];
             let SessionResult {
                 chosen_count,
-                goal_count,
                 reset,
             } = self.session_select(&samples);
-            curr_goal_count += goal_count;
             if reset {
                 pity_count = 0;
             } else {
                 pity_count += chosen_count;
             }
             orb_count += Sim::orb_cost(chosen_count);
-            if curr_goal_count >= self.goal.goals[0].num_copies {
+            if self.goal_data.is_met() {
                 return orb_count;
             }
         }
@@ -92,59 +121,57 @@ impl Sim {
     // Returns: number of items picked, number of items meeting the goal,
     // and whether the rate reset
     fn session_select(&mut self, samples: &[(Pool, Color); 5]) -> SessionResult {
-        let mut chosen_count = 0;
-        let mut goal_count = 0;
-        let mut reset = false;
+        let mut result = SessionResult {
+            chosen_count: 0,
+            reset: false,
+        };
         for i in 0..5 {
             let sample = samples[i];
             if self.may_match_goal(sample) {
-                chosen_count += 1;
-                if self.does_match_goal(sample) {
-                    goal_count += 1;
-                    if goal_count >= self.goal.goals[0].num_copies {
-                        return SessionResult {
-                            chosen_count,
-                            goal_count,
-                            reset: true,
-                        };
-                    }
-                }
-                if sample.0 == Pool::Focus || sample.0 == Pool::Fivestar {
-                    reset = true;
+                result.chosen_count += 1;
+                result.reset |= self.pull_orb(sample);
+                if self.goal_data.is_met() {
+                    return result;
                 }
             }
         }
-        if chosen_count == 0 {
+        if result.chosen_count == 0 {
             // None with the color we want, so pick randomly
             let sample = samples[self.rng.gen::<usize>() % samples.len()];
-            if sample.0 == Pool::Focus || sample.0 == Pool::Fivestar {
-                reset = true;
-            }
-            chosen_count = 1;
+            result.reset |= self.pull_orb(sample);
+            result.chosen_count = 1;
         }
-        SessionResult {
-            chosen_count,
-            goal_count,
-            reset,
-        }
+        result
     }
 
     fn may_match_goal(&self, sample: (Pool, Color)) -> bool {
-        self.goal.has_color(sample.1)
+        self.goal_data.color_needed[sample.1 as usize]
     }
 
-    fn does_match_goal(&mut self, sample: (Pool, Color)) -> bool {
-        let color = self.goal.goals[0].unit_color;
-        if sample.0 != Pool::Focus || sample.1 != color {
-            return false;
+    // Returns true if the rate should reset
+    fn pull_orb(&mut self, sample: (Pool, Color)) -> bool {
+        let color = sample.1;
+        let do_reset = sample.0 == Pool::Focus || sample.0 == Pool::Fivestar;
+        if sample.0 != Pool::Focus || !self.goal_data.color_needed[color as usize] {
+            return do_reset;
         }
         let focus_count = self.banner.focus_sizes[color as usize];
-        if focus_count == 1 {
-            true
-        } else {
-            // Equal chance among all same-color focus units
-            return self.rng.gen::<f32>() < 1.0 / focus_count as f32;
+        let which_unit = self.rng.gen::<usize>() % focus_count as usize;
+        if which_unit < self.goal_data.copies_needed[color as usize].len() {
+            if self.goal.kind == GoalKind::Any {
+                self.goal_data.color_needed = [false, false, false, false];
+            } else {
+                if self.goal_data.copies_needed[color as usize][which_unit] > 1 {
+                    self.goal_data.copies_needed[color as usize][which_unit] -= 1;
+                } else {
+                    self.goal_data.copies_needed[color as usize].remove(which_unit);
+                    if self.goal_data.copies_needed[color as usize].len() == 0 {
+                        self.goal_data.color_needed[color as usize] = false;
+                    }
+                }
+            }
         }
+        return do_reset;
     }
 
     fn orb_cost(count: u32) -> u32 {

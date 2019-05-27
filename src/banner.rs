@@ -1,6 +1,6 @@
 use seed::prelude::*;
 
-use crate::Msg;
+use crate::{Msg, Color};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Banner {
@@ -19,7 +19,7 @@ impl Default for Banner {
 
 #[derive(Copy, Clone, Debug)]
 pub enum BannerChangeKind {
-    FocusSize(usize),
+    FocusSize(Color),
     StartingRates,
 }
 
@@ -57,7 +57,7 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
                 id!["focus_count_r"],
                 input_ev("input", |text| Msg::BannerChange {
                     text,
-                    kind: BannerChangeKind::FocusSize(0)
+                    kind: BannerChangeKind::FocusSize(Color::Red)
                 }),
                 attrs![
                     At::Type => "number";
@@ -77,7 +77,7 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
                 id!["focus_count_b"],
                 input_ev("input", |text| Msg::BannerChange {
                     text,
-                    kind: BannerChangeKind::FocusSize(1)
+                    kind: BannerChangeKind::FocusSize(Color::Blue)
                 }),
                 attrs![
                     At::Type => "number";
@@ -97,7 +97,7 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
                 id!["focus_count_g"],
                 input_ev("input", |text| Msg::BannerChange {
                     text,
-                    kind: BannerChangeKind::FocusSize(2)
+                    kind: BannerChangeKind::FocusSize(Color::Green)
                 }),
                 attrs![
                     At::Type => "number";
@@ -117,7 +117,7 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
                 id!["focus_count_c"],
                 input_ev("input", |text| Msg::BannerChange {
                     text,
-                    kind: BannerChangeKind::FocusSize(3)
+                    kind: BannerChangeKind::FocusSize(Color::Colorless)
                 }),
                 attrs![
                     At::Type => "number";

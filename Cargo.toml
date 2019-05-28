@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 
 
 [dependencies]
-seed = "0.3.4"
+seed = "0.3.5"
 wasm-bindgen = "0.2.42"
 futures = "0.1.26"
 strum = "0.15.0"

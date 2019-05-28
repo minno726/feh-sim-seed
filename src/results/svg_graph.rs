@@ -74,7 +74,7 @@ pub fn graph(data: &Counter) -> El<Msg> {
     svg![
         id!["graph"],
         attrs![
-            "viewBox" => format!("{} {} {} {}", XMIN, YMIN, WIDTH, HEIGHT);
+            At::ViewBox => format!("{} {} {} {}", XMIN, YMIN, WIDTH, HEIGHT);
         ],
         path_el,
         if !data.is_empty() {

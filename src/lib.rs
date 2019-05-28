@@ -22,6 +22,8 @@ mod stats;
 mod counter;
 use counter::Counter;
 
+mod subpages;
+
 // Model
 
 #[repr(u8)]
@@ -72,11 +74,25 @@ impl TryFrom<u8> for Pool {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Page {
+    Main,
+    Help,
+    Changelog,
+}
+
+impl Default for Page {
+    fn default() -> Self {
+        Page::Main
+    }
+}
+
 #[derive(Default, Debug)]
 struct Model {
     pub data: Counter,
     pub banner: Banner,
     pub goal: Goal,
+    pub curr_page: Page,
 }
 
 // Update
@@ -92,6 +108,7 @@ pub enum Msg {
         text: String,
         kind: GoalChangeKind,
     },
+    PageChange(Page),
 }
 
 fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
@@ -172,25 +189,36 @@ fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
                 model.data.clear();
             }
         }
+        Msg::PageChange(page) => {
+            model.curr_page = page;
+        }
     }
 }
 
 // View
 
 fn view(model: &Model) -> Vec<El<Msg>> {
+    match model.curr_page {
+        Page::Main => main_page(model),
+        Page::Help => El::from_markdown(subpages::HELP_MD),
+        Page::Changelog => El::from_markdown(subpages::CHANGELOG_MD),
+    }
+}
+
+fn main_page(model: &Model) -> Vec<El<Msg>> {
     vec![
         header![
             a![
                 "Help",
                 attrs! [
-                    At::Href => "help.html";
+                    At::Href => "/fehstatsim/help";
                 ],
             ],
             " | v0.0.3 ",
             a![
                 "Changelog",
                 attrs![
-                    At::Href => "changelog.html";
+                    At::Href => "/fehstatsim/changelog";
                 ],
             ],
         ],
@@ -214,9 +242,24 @@ fn view(model: &Model) -> Vec<El<Msg>> {
     ]
 }
 
+fn routes(url: &seed::Url) -> Msg {
+    if url.path.len() <= 1 {
+        return Msg::PageChange(Page::Main);
+    }
+
+    log!(url);
+
+    match &*url.path[1] {
+        "help" => Msg::PageChange(Page::Help),
+        "changelog" => Msg::PageChange(Page::Changelog),
+        _ => Msg::PageChange(Page::Main),
+    }
+}
+
 #[wasm_bindgen]
 pub fn render() {
     seed::App::build(Model::default(), update, view)
+        .routes(routes)
         .finish()
         .run();
 }

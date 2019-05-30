@@ -60,7 +60,7 @@ impl GoalPreset {
     pub fn is_available(self, banner: &Banner) -> bool {
         use crate::goal::GoalPreset::*;
         match self {
-            Custom => false /* Until custom goals are implemented */,
+            Custom => false, /* Until custom goals are implemented */
             AnyFocus | AllFocus => banner.focus_sizes.iter().any(|&x| x > 0),
             RedFocus | AnyRed => banner.focus_sizes[0] > 0,
             BlueFocus | AnyBlue => banner.focus_sizes[1] > 0,

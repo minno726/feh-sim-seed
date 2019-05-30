@@ -1,8 +1,8 @@
 use seed::prelude::*;
 
-use crate::{Msg, Color};
+use crate::{Color, Msg};
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Banner {
     pub focus_sizes: [u8; 4],
     pub starting_rates: (u8, u8),
@@ -17,14 +17,15 @@ impl Default for Banner {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum BannerChangeKind {
-    FocusSize(Color),
-    StartingRates,
+impl Banner {
+    pub fn from_query_string(s: &str) -> Option<Self> {
+        let data = base64::decode(s).ok()?;
+        bincode::deserialize(&data).ok()
+    }
 }
 
 pub fn banner_selector(banner: &Banner) -> El<Msg> {
-    let option = |rates: (u8, u8), label: &str| -> El<Msg> {
+    let rate_option = |rates: (u8, u8), label: &str| -> El<Msg> {
         let mut attrs = attrs![
             At::Value => format!("{} {}", rates.0, rates.1);
         ];
@@ -37,13 +38,22 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
         id!["banner_selector"],
         select![
             id!["starting_rates"],
-            input_ev("input", |text| Msg::BannerChange {
-                text,
-                kind: BannerChangeKind::StartingRates
+            input_ev("input", |text| {
+                if let &[Ok(first), Ok(second)] = &*text
+                    .split_whitespace()
+                    .map(str::parse::<u8>)
+                    .collect::<Vec<_>>()
+                {
+                    Msg::BannerRateChange {
+                        rates: (first, second),
+                    }
+                } else {
+                    Msg::Null
+                }
             }),
-            option((3, 3), "3%/3% (Normal)"),
-            option((5, 3), "5%/3% (Hero Fest)"),
-            option((8, 0), "8%/0% (Legendary)"),
+            rate_option((3, 3), "3%/3% (Normal)"),
+            rate_option((5, 3), "5%/3% (Hero Fest)"),
+            rate_option((8, 0), "8%/0% (Legendary)"),
         ],
         div![
             id!["focus_counts"],
@@ -55,9 +65,15 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
             ],
             input![
                 id!["focus_count_r"],
-                input_ev("input", |text| Msg::BannerChange {
-                    text,
-                    kind: BannerChangeKind::FocusSize(Color::Red)
+                input_ev("input", |text| {
+                    if let Ok(quantity) = text.parse::<u8>() {
+                        Msg::BannerFocusSizeChange {
+                            color: Color::Red,
+                            quantity,
+                        }
+                    } else {
+                        Msg::Null
+                    }
                 }),
                 attrs![
                     At::Type => "number";
@@ -75,9 +91,15 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
             ],
             input![
                 id!["focus_count_b"],
-                input_ev("input", |text| Msg::BannerChange {
-                    text,
-                    kind: BannerChangeKind::FocusSize(Color::Blue)
+                input_ev("input", |text| {
+                    if let Ok(quantity) = text.parse::<u8>() {
+                        Msg::BannerFocusSizeChange {
+                            color: Color::Blue,
+                            quantity,
+                        }
+                    } else {
+                        Msg::Null
+                    }
                 }),
                 attrs![
                     At::Type => "number";
@@ -95,9 +117,15 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
             ],
             input![
                 id!["focus_count_g"],
-                input_ev("input", |text| Msg::BannerChange {
-                    text,
-                    kind: BannerChangeKind::FocusSize(Color::Green)
+                input_ev("input", |text| {
+                    if let Ok(quantity) = text.parse::<u8>() {
+                        Msg::BannerFocusSizeChange {
+                            color: Color::Green,
+                            quantity,
+                        }
+                    } else {
+                        Msg::Null
+                    }
                 }),
                 attrs![
                     At::Type => "number";
@@ -115,9 +143,15 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
             ],
             input![
                 id!["focus_count_c"],
-                input_ev("input", |text| Msg::BannerChange {
-                    text,
-                    kind: BannerChangeKind::FocusSize(Color::Colorless)
+                input_ev("input", |text| {
+                    if let Ok(quantity) = text.parse::<u8>() {
+                        Msg::BannerFocusSizeChange {
+                            color: Color::Colorless,
+                            quantity,
+                        }
+                    } else {
+                        Msg::Null
+                    }
                 }),
                 attrs![
                     At::Type => "number";

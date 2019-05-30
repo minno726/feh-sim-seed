@@ -1,4 +1,3 @@
-
 use crate::Msg;
 use seed::prelude::*;
 fn header() -> El<Msg> {

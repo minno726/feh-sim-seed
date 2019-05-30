@@ -5,7 +5,7 @@ use seed::prelude::*;
 use std::convert::TryFrom;
 
 mod banner;
-use banner::{Banner, BannerChangeKind};
+use banner::Banner;
 
 mod goal;
 use goal::{Goal, GoalChangeKind, GoalPreset};
@@ -23,6 +23,8 @@ mod counter;
 use counter::Counter;
 
 mod subpages;
+
+mod query_string;
 
 // Model
 
@@ -99,46 +101,57 @@ struct Model {
 
 #[derive(Clone, Debug)]
 pub enum Msg {
+    Null,
     Run,
-    BannerChange {
-        text: String,
-        kind: BannerChangeKind,
-    },
-    GoalChange {
-        text: String,
-        kind: GoalChangeKind,
-    },
+    BannerFocusSizeChange { color: Color, quantity: u8 },
+    BannerRateChange { rates: (u8, u8) },
+    BannerSet { banner: Banner },
+    GoalChange { text: String, kind: GoalChangeKind },
     PageChange(Page),
+    Permalink,
 }
 
-fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
+fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
     log!(msg);
     match msg {
-        Msg::BannerChange {
-            text,
-            kind: BannerChangeKind::FocusSize(color),
-        } => {
-            if let Ok(num) = text.parse::<u8>() {
-                model.banner.focus_sizes[color as usize] = num;
-                model.data.clear();
+        Msg::Null => {
+            orders.skip();
+        }
+        Msg::BannerFocusSizeChange { color, quantity } => {
+            model.banner.focus_sizes[color as usize] = quantity;
+            model.data.clear();
+        }
+        Msg::BannerRateChange { rates } => {
+            model.banner.starting_rates = rates;
+            model.data.clear();
+            if rates == (8, 0) {
+                // Convenient handling for legendary banners, since they
+                // always have the same focus pool sizes.
+                model.banner.focus_sizes = [3, 3, 3, 3];
             }
         }
-        Msg::BannerChange {
-            text,
-            kind: BannerChangeKind::StartingRates,
-        } => {
-            let mut numbers = text.split_whitespace();
-            let mut nextnum = || Some(numbers.next()?.parse::<u8>().ok()?);
-            if let (Some(first), Some(second)) = (nextnum(), nextnum()) {
-                model.banner.starting_rates.0 = first;
-                model.banner.starting_rates.1 = second;
-                model.data.clear();
-                if (first, second) == (8, 0) {
-                    // Convenient handling for legendary banners, since they
-                    // always have the same focus pool sizes.
-                    model.banner.focus_sizes = [3, 3, 3, 3];
-                }
-            }
+        Msg::BannerSet { banner } => {
+            orders
+                .skip()
+                .send_msg(Msg::BannerFocusSizeChange {
+                    color: Color::Red,
+                    quantity: banner.focus_sizes[0],
+                })
+                .send_msg(Msg::BannerFocusSizeChange {
+                    color: Color::Blue,
+                    quantity: banner.focus_sizes[1],
+                })
+                .send_msg(Msg::BannerFocusSizeChange {
+                    color: Color::Green,
+                    quantity: banner.focus_sizes[2],
+                })
+                .send_msg(Msg::BannerFocusSizeChange {
+                    color: Color::Colorless,
+                    quantity: banner.focus_sizes[3],
+                })
+                .send_msg(Msg::BannerRateChange {
+                    rates: banner.starting_rates,
+                });
         }
         Msg::Run => {
             // Ensure that the controls are in sync
@@ -192,6 +205,13 @@ fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
         Msg::PageChange(page) => {
             model.curr_page = page;
         }
+        Msg::Permalink => {
+            let url = seed::Url::new(vec!["fehstatsim"]).search(&format!(
+                "banner={}",
+                base64::encode(&bincode::serialize(&model.banner).unwrap())
+            ));
+            seed::push_route(url);
+        }
     }
 }
 
@@ -220,23 +240,21 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
                 attrs![
                     At::Href => "/fehstatsim/changelog";
                 ],
-                simple_ev("click", Msg::PageChange(Page::Changelog)),
             ],
         ],
         div![
             id!["content"],
             goal::goal_selector(&model.goal, &model.banner),
             banner::banner_selector(&model.banner),
-            div![
+            button!["Permalink", simple_ev(Ev::Click, Msg::Permalink),],
+            button![
                 simple_ev(Ev::Click, Msg::Run),
-                button![
-                    if !model.goal.is_available(&model.banner) {
-                        attrs![At::Disabled => true]
-                    } else {
-                        attrs![]
-                    },
-                    "Run"
-                ]
+                if !model.goal.is_available(&model.banner) {
+                    attrs![At::Disabled => true]
+                } else {
+                    attrs![]
+                },
+                "Run"
             ],
             results::results(&model.data),
         ],
@@ -244,6 +262,10 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
 }
 
 fn routes(url: &seed::Url) -> Msg {
+    if let Some(banner) = query_string::get(url, "banner").and_then(Banner::from_query_string) {
+        return Msg::BannerSet { banner };
+    }
+
     if url.path.len() <= 1 {
         return Msg::PageChange(Page::Main);
     }

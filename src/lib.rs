@@ -200,8 +200,8 @@ fn update(msg: Msg, model: &mut Model, _: &mut Orders<Msg>) {
 fn view(model: &Model) -> Vec<El<Msg>> {
     match model.curr_page {
         Page::Main => main_page(model),
-        Page::Help => El::from_markdown(subpages::HELP_MD),
-        Page::Changelog => El::from_markdown(subpages::CHANGELOG_MD),
+        Page::Help => subpages::help(),
+        Page::Changelog => subpages::changelog(),
     }
 }
 
@@ -220,6 +220,7 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
                 attrs![
                     At::Href => "/fehstatsim/changelog";
                 ],
+                simple_ev("click", Msg::PageChange(Page::Changelog)),
             ],
         ],
         div![

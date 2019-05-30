@@ -1,4 +1,21 @@
-pub const HELP_MD: &str = r#"
+
+use crate::Msg;
+use seed::prelude::*;
+fn header() -> El<Msg> {
+    header![
+        style![
+            "text-align" => "start";
+        ],
+        a![
+            "Back",
+            attrs! [
+                At::Href => "/fehstatsim/";
+            ]
+        ],
+    ]
+}
+
+const HELP_MD: &str = r#"
 ## Settings
 
 ### Goal
@@ -26,7 +43,13 @@ The graph shows how many orbs you need to spend to get a certain percent chance 
 Don't forget that there is no amount of spending that can guarantee that you reach the goal. The 99th percentile shows a really high cost, but one out of every hundred people who read this will spend more than that next time they go to summon.
 "#;
 
-pub const CHANGELOG_MD: &str = r#"
+pub fn help() -> Vec<El<Msg>> {
+    let mut els = vec![header()];
+    els.extend(El::from_markdown(HELP_MD));
+    els
+}
+
+const CHANGELOG_MD: &str = r#"
 #### v0.0.3 - 7 Mar 2019
 
 * Add graph of results
@@ -41,3 +64,9 @@ pub const CHANGELOG_MD: &str = r#"
 
 * Initial release.
 "#;
+
+pub fn changelog() -> Vec<El<Msg>> {
+    let mut els = vec![header()];
+    els.extend(El::from_markdown(CHANGELOG_MD));
+    els
+}

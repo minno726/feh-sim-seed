@@ -49,6 +49,18 @@ pub fn help() -> Vec<El<Msg>> {
 }
 
 const CHANGELOG_MD: &str = r#"
+#### v0.1.0 - Date TBD
+
+* (TODO) Make the interface look better and be easier to use.
+
+* Add advanced goals.
+
+* Add permalink for saving/sharing banner and goal settings.
+
+* (TODO) Add control for checking costs at arbitrary percentiles.
+
+* (TODO) Add control for checking what percentile a certain cost is.
+
 #### v0.0.3 - 7 Mar 2019
 
 * Add graph of results

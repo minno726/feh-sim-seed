@@ -3,12 +3,17 @@ extern crate seed;
 use seed::prelude::*;
 
 use std::convert::TryFrom;
+use std::fmt;
+
+use strum_macros::EnumIter;
+
+use serde::{Deserialize, Serialize};
 
 mod banner;
 use banner::Banner;
 
 mod goal;
-use goal::{Goal, GoalChangeKind, GoalPreset};
+use goal::{Goal, GoalKind, GoalPart, GoalPreset};
 
 mod results;
 
@@ -29,12 +34,18 @@ mod query_string;
 // Model
 
 #[repr(u8)]
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, EnumIter, Serialize, Deserialize)]
 pub enum Color {
     Red,
     Blue,
     Green,
     Colorless,
+}
+
+impl fmt::Display for Color {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 impl TryFrom<u8> for Color {
@@ -102,11 +113,17 @@ struct Model {
 #[derive(Clone, Debug)]
 pub enum Msg {
     Null,
+    Multiple(Vec<Msg>),
     Run,
     BannerFocusSizeChange { color: Color, quantity: u8 },
     BannerRateChange { rates: (u8, u8) },
     BannerSet { banner: Banner },
-    GoalChange { text: String, kind: GoalChangeKind },
+    GoalPresetChange { preset: GoalPreset },
+    GoalPartColorChange { index: usize, color: Color },
+    GoalPartQuantityChange { index: usize, quantity: u8 },
+    GoalPartAdd { color: Color, quantity: u8 },
+    GoalKindChange { kind: GoalKind },
+    GoalSet { goal: Goal },
     PageChange(Page),
     Permalink,
 }
@@ -116,6 +133,12 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
     match msg {
         Msg::Null => {
             orders.skip();
+        }
+        Msg::Multiple(messages) => {
+            orders.skip();
+            for msg in messages {
+                orders.send_msg(msg);
+            }
         }
         Msg::BannerFocusSizeChange { color, quantity } => {
             model.banner.focus_sizes[color as usize] = quantity;
@@ -176,39 +199,47 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
                 limit *= 2;
             }
         }
-        Msg::GoalChange {
-            text,
-            kind: GoalChangeKind::Preset,
-        } => {
-            let value = text
-                .parse::<u8>()
-                .ok()
-                .and_then(|id| GoalPreset::try_from(id).ok());
-            if let Some(preset) = value {
-                if preset.is_available(&model.banner) {
-                    model.goal.set_preset(&model.banner, preset);
-                }
-                model.data.clear();
+        Msg::GoalPresetChange { preset } => {
+            if preset.is_available(&model.banner) {
+                model.goal.set_preset(&model.banner, preset);
             }
-            log!(model.goal);
+            model.data.clear();
         }
-        Msg::GoalChange {
-            text,
-            kind: GoalChangeKind::Quantity,
-        } => {
-            let value = text.parse::<u8>();
-            if let Ok(quantity) = value {
-                model.goal.goals[0].num_copies = quantity;
-                model.data.clear();
+        Msg::GoalPartColorChange { index, color } => {
+            model.goal.goals[index].unit_color = color;
+            model.data.clear();
+        }
+        Msg::GoalPartQuantityChange { index, quantity } => {
+            if quantity == 0 {
+                model.goal.goals.remove(index);
+            } else {
+                model.goal.goals[index].num_copies = quantity;
             }
+            model.data.clear();
+        }
+        Msg::GoalPartAdd { color, quantity } => {
+            model.goal.goals.push(GoalPart {
+                unit_color: color,
+                num_copies: quantity,
+            });
+            model.data.clear();
+        }
+        Msg::GoalKindChange { kind } => {
+            model.goal.kind = kind;
+            model.data.clear();
+        }
+        Msg::GoalSet { goal } => {
+            model.goal = goal;
+            model.data.clear();
         }
         Msg::PageChange(page) => {
             model.curr_page = page;
         }
         Msg::Permalink => {
             let url = seed::Url::new(vec!["fehstatsim"]).search(&format!(
-                "banner={}",
-                base64::encode(&bincode::serialize(&model.banner).unwrap())
+                "banner={}&goal={}",
+                base64::encode(&bincode::serialize(&model.banner).unwrap()),
+                base64::encode(&bincode::serialize(&model.goal).unwrap())
             ));
             seed::push_route(url);
         }
@@ -234,7 +265,7 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
                     At::Href => "/fehstatsim/help";
                 ],
             ],
-            " | v0.0.3 ",
+            " | v0.1.0 ",
             a![
                 "Changelog",
                 attrs![
@@ -262,21 +293,23 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
 }
 
 fn routes(url: &seed::Url) -> Msg {
-    if let Some(banner) = query_string::get(url, "banner").and_then(Banner::from_query_string) {
-        return Msg::BannerSet { banner };
-    }
+    let mut messages = vec![];
 
-    if url.path.len() <= 1 {
-        return Msg::PageChange(Page::Main);
-    }
-
-    log!(url);
-
-    match &*url.path[1] {
-        "help" => Msg::PageChange(Page::Help),
-        "changelog" => Msg::PageChange(Page::Changelog),
+    messages.push(match url.path.get(1).map(String::as_str) {
+        Some("help") => Msg::PageChange(Page::Help),
+        Some("changelog") => Msg::PageChange(Page::Changelog),
         _ => Msg::PageChange(Page::Main),
+    });
+
+    if let Some(banner) = query_string::get(url, "banner").and_then(Banner::from_query_string) {
+        messages.push(Msg::BannerSet { banner });
     }
+
+    if let Some(goal) = query_string::get(url, "goal").and_then(Goal::from_query_string) {
+        messages.push(Msg::GoalSet { goal });
+    }
+
+    Msg::Multiple(messages)
 }
 
 #[wasm_bindgen]

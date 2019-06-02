@@ -65,7 +65,6 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
             ],
             label![attrs![At::For => "new_unit_banner"], "New units?"]
         ],
-
         div![
             id!["focus_counts"],
             label![

@@ -238,12 +238,22 @@ fn advanced_goal_selector(goal: &Goal) -> El<Msg> {
                 attrs![
                     At::Value => "Any";
                 ],
+                if goal.kind == GoalKind::Any {
+                    attrs![At::Selected => ""]
+                } else {
+                    attrs![]
+                },
                 "Any of these",
             ],
             option![
                 attrs![
                     At::Value => "All";
                 ],
+                if goal.kind == GoalKind::All {
+                    attrs![At::Selected => ""]
+                } else {
+                    attrs![]
+                },
                 "All of these",
             ],
         ]);

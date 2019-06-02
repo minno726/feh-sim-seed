@@ -106,6 +106,7 @@ struct Model {
     pub banner: Banner,
     pub goal: Goal,
     pub curr_page: Page,
+    pub graph_highlight: Option<f32>,
 }
 
 // Update
@@ -127,6 +128,7 @@ pub enum Msg {
     GoalSet { goal: Goal },
     PageChange(Page),
     Permalink,
+    GraphHighlight { frac: f32 },
 }
 
 fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
@@ -159,31 +161,8 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
             model.data.clear();
         }
         Msg::BannerSet { banner } => {
-            log!(banner);
-            orders
-                .skip()
-                .send_msg(Msg::BannerFocusSizeChange {
-                    color: Color::Red,
-                    quantity: banner.focus_sizes[0],
-                })
-                .send_msg(Msg::BannerFocusSizeChange {
-                    color: Color::Blue,
-                    quantity: banner.focus_sizes[1],
-                })
-                .send_msg(Msg::BannerFocusSizeChange {
-                    color: Color::Green,
-                    quantity: banner.focus_sizes[2],
-                })
-                .send_msg(Msg::BannerFocusSizeChange {
-                    color: Color::Colorless,
-                    quantity: banner.focus_sizes[3],
-                })
-                .send_msg(Msg::BannerRateChange {
-                    rates: banner.starting_rates,
-                });
-            if banner.new_units != model.banner.new_units {
-                orders.send_msg(Msg::BannerFocusTypeToggle);
-            }
+            model.banner = banner;
+            model.data.clear();
         }
         Msg::Run => {
             // Ensure that the controls are in sync
@@ -196,17 +175,19 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
             let perf = seed::window().performance().unwrap();
             let start = perf.now();
 
-            // Exponential increase with a loose target of 1000 ms of calculation.
+            // Exponential increase with a loose target of 500 ms of calculation.
             // Time per simulation varies wildly depending on device performance
             // and sim parameters, so it starts with a very low number and goes
             // from there.
-            while perf.now() - start < 500.0 {
+            while perf.now() - start < 250.0 {
                 for _ in 0..limit {
                     let result = sim.roll_until_goal();
                     model.data[result] += 1;
                 }
                 limit *= 2;
             }
+
+            model.graph_highlight = None;
         }
         Msg::GoalPresetChange { preset } => {
             if preset.is_available(&model.banner) {
@@ -246,11 +227,14 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
         }
         Msg::Permalink => {
             let url = seed::Url::new(vec!["fehstatsim"]).search(&format!(
-                "banner={}&goal={}",
+                "banner={}&goal={}&run=1",
                 base64::encode(&bincode::serialize(&model.banner).unwrap()),
                 base64::encode(&bincode::serialize(&model.goal).unwrap())
             ));
             seed::push_route(url);
+        }
+        Msg::GraphHighlight { frac } => {
+            model.graph_highlight = Some(frac);
         }
     }
 }
@@ -296,7 +280,7 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
                 },
                 if model.data.is_empty() { "Run" } else { "More" }
             ],
-            results::results(&model.data),
+            results::results(&model.data, model.graph_highlight),
         ],
     ]
 }
@@ -316,6 +300,10 @@ fn routes(url: &seed::Url) -> Msg {
 
     if let Some(goal) = query_string::get(url, "goal").and_then(Goal::from_query_string) {
         messages.push(Msg::GoalSet { goal });
+    }
+
+    if let Some("1") = query_string::get(url, "run") {
+        messages.push(Msg::Run);
     }
 
     Msg::Multiple(messages)

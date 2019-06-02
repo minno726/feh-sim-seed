@@ -27,7 +27,7 @@ features = ["wasm-bindgen", "std"]
 
 [dependencies.web-sys]
 version = "0.3.19"
-features = ["Performance"]
+features = ["Performance", "SvgsvgElement", "Element", "DomRect"]
 
 [profile.release]
 lto = true

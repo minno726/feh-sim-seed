@@ -61,6 +61,8 @@ const CHANGELOG_MD: &str = r#"
 
 * (TODO) Add control for checking what percentile a certain cost is.
 
+* Add support for the April 2019 change to 5\* pools on new heroes banners.
+
 #### v0.0.3 - 7 Mar 2019
 
 * Add graph of results

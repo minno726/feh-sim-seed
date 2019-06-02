@@ -6,6 +6,7 @@ use crate::{Color, Msg};
 pub struct Banner {
     pub focus_sizes: [u8; 4],
     pub starting_rates: (u8, u8),
+    pub new_units: bool,
 }
 
 impl Default for Banner {
@@ -13,6 +14,7 @@ impl Default for Banner {
         Banner {
             focus_sizes: [1, 1, 1, 1],
             starting_rates: (3, 3),
+            new_units: true,
         }
     }
 }
@@ -36,25 +38,34 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
     };
     div![
         id!["banner_selector"],
-        select![
-            id!["starting_rates"],
-            input_ev("input", |text| {
-                if let &[Ok(first), Ok(second)] = &*text
-                    .split_whitespace()
-                    .map(str::parse::<u8>)
-                    .collect::<Vec<_>>()
-                {
-                    Msg::BannerRateChange {
-                        rates: (first, second),
+        div![
+            select![
+                id!["starting_rates"],
+                input_ev("input", |text| {
+                    if let &[Ok(first), Ok(second)] = &*text
+                        .split_whitespace()
+                        .map(str::parse::<u8>)
+                        .collect::<Vec<_>>()
+                    {
+                        Msg::BannerRateChange {
+                            rates: (first, second),
+                        }
+                    } else {
+                        Msg::Null
                     }
-                } else {
-                    Msg::Null
-                }
-            }),
-            rate_option((3, 3), "3%/3% (Normal)"),
-            rate_option((5, 3), "5%/3% (Hero Fest)"),
-            rate_option((8, 0), "8%/0% (Legendary)"),
+                }),
+                rate_option((3, 3), "3%/3% (Normal)"),
+                rate_option((5, 3), "5%/3% (Hero Fest)"),
+                rate_option((8, 0), "8%/0% (Legendary)"),
+            ],
+            input![
+                id!["new_unit_banner"],
+                simple_ev(Ev::Input, Msg::BannerFocusTypeToggle),
+                attrs![At::Type => "checkbox"; At::Checked => banner.new_units.to_string()],
+            ],
+            label![attrs![At::For => "new_unit_banner"], "New units?"]
         ],
+
         div![
             id!["focus_counts"],
             label![

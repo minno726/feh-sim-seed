@@ -109,6 +109,12 @@ impl Goal {
         use crate::goal::GoalPreset::*;
         use crate::Color::*;
 
+        if self.preset != GoalPreset::Custom && preset == GoalPreset::Custom {
+            // If we're switching from a preset to a custom goal, make
+            // sure that the subgoals are in sync with that preset, since
+            // they're about to be displayed to the user for editing.
+            self.set_preset(banner, self.preset);
+        }
         self.preset = preset;
         self.kind = match preset {
             Custom => return,

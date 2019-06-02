@@ -117,6 +117,7 @@ pub enum Msg {
     Run,
     BannerFocusSizeChange { color: Color, quantity: u8 },
     BannerRateChange { rates: (u8, u8) },
+    BannerFocusTypeToggle,
     BannerSet { banner: Banner },
     GoalPresetChange { preset: GoalPreset },
     GoalPartColorChange { index: usize, color: Color },
@@ -153,7 +154,12 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
                 model.banner.focus_sizes = [3, 3, 3, 3];
             }
         }
+        Msg::BannerFocusTypeToggle => {
+            model.banner.new_units = !model.banner.new_units;
+            model.data.clear();
+        }
         Msg::BannerSet { banner } => {
+            log!(banner);
             orders
                 .skip()
                 .send_msg(Msg::BannerFocusSizeChange {
@@ -175,6 +181,9 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
                 .send_msg(Msg::BannerRateChange {
                     rates: banner.starting_rates,
                 });
+            if banner.new_units != model.banner.new_units {
+                orders.send_msg(Msg::BannerFocusTypeToggle);
+            }
         }
         Msg::Run => {
             // Ensure that the controls are in sync
@@ -285,7 +294,7 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
                 } else {
                     attrs![]
                 },
-                "Run"
+                if model.data.is_empty() { "Run" } else { "More" }
             ],
             results::results(&model.data),
         ],

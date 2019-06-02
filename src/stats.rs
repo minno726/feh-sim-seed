@@ -1,28 +1,43 @@
 use crate::counter::Counter;
 
 pub fn percentile(data: &Counter, pct: f32) -> u32 {
-    debug_assert!(pct >= 0.0);
-    debug_assert!(pct <= 1.0);
+    percentiles(data, &[pct])[0]
+}
+
+pub fn percentiles(data: &Counter, pcts: &[f32]) -> Vec<u32> {
+    debug_assert!(pcts.iter().all(|&x| x >= 0.0 && x <= 1.0));
+    debug_assert!((0..pcts.len() - 1).all(|idx| pcts[idx + 1] >= pcts[idx]));
 
     let total: u32 = data.iter().sum();
+    let mut results = vec![0; pcts.len()];
 
     if total == 0 {
-        return 0;
+        return results;
     }
 
     let mut accum_total = 0;
-    for idx in 0..data.len() as u32 {
-        accum_total += data[idx];
-        if accum_total as f32 / total as f32 > pct {
-            return idx;
+    let mut out_idx = 0;
+    for value in 0..data.len() as u32 {
+        accum_total += data[value];
+        while out_idx < results.len() && accum_total as f32 / total as f32 > pcts[out_idx] {
+            results[out_idx] = value;
+            out_idx += 1;
         }
     }
 
-    // Pct is 100% (or close enough for rounding errors) if it didn't already finish,
-    // so grab the last non-zero value.
+    if out_idx == results.len() {
+        return results;
+    }
+
+    // The remaining values in pcts are 100% (or close enough for rounding errors)
+    // if it didn't already finish, so grab the last non-zero value and fill the
+    // rest of the results.
     for &value in data.iter().rev() {
         if value > 0 {
-            return value;
+            for i in out_idx..results.len() {
+                results[i] = value;
+            }
+            return results;
         }
     }
 

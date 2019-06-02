@@ -21,10 +21,10 @@ fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
         .chain((10..90).map(|x| x as f32 / 100.0))
         .chain((900..1000).map(|x| x as f32 / 1000.0))
         .collect::<Vec<_>>();
-    let data_points = sample_points
-        .iter()
-        .map(|&x| stats::percentile(data, x) as f32)
-        .collect::<Vec<_>>();
+    let data_points = stats::percentiles(data, &sample_points); /*sample_points
+                                                                .iter()
+                                                                .map(|&x| stats::percentile(data, x) as f32)
+                                                                .collect::<Vec<_>>();*/
     let x = |pct: f32| pct as f32 * WIDTH + XMIN;
     let y = |val: f32| {
         let max = *data_points.last().unwrap() as f32;
@@ -32,10 +32,22 @@ fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
     };
     let mut path = String::new();
     if !data.is_empty() {
-        write!(path, "M {} {} ", x(sample_points[0]), y(data_points[0])).unwrap();
+        write!(
+            path,
+            "M {} {} ",
+            x(sample_points[0]),
+            y(data_points[0] as f32)
+        )
+        .unwrap();
         for i in 1..data_points.len() {
             if data_points[i] != data_points[i - 1] {
-                write!(path, "L {} {}", x(sample_points[i]), y(data_points[i])).unwrap();
+                write!(
+                    path,
+                    "L {} {}",
+                    x(sample_points[i]),
+                    y(data_points[i] as f32)
+                )
+                .unwrap();
             }
         }
     }

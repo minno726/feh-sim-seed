@@ -58,20 +58,35 @@ fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
             attrs![
                 "font-size" => "15%";
             ],
-            if pct < 0.25 {
-                attrs![
-                    "dx" => x(pct) + 1.0;
-                    "dy" => y(value) + 1.0;
-                    "text-anchor" => "begin";
-                    "dominant-baseline" => "hanging";
-                ]
-            } else {
+            // By default, put the label up and to the left of the point.
+            if pct > 0.24 {
                 attrs![
                     "dx" => x(pct) - 1.0;
                     "dy" => y(value) - 1.0;
                     "text-anchor" => "end";
                     "dominant-baseline" => "baseline";
                 ]
+            } else {
+                // If the point is too far to the left for the label to fit,
+                // then put it down and to the right if there is room there.
+                if y(value) < HEIGHT * 0.9 {
+                    attrs![
+                        "dx" => x(pct) + 1.0;
+                        "dy" => y(value) + 1.0;
+                        "text-anchor" => "begin";
+                        "dominant-baseline" => "hanging";
+                    ]
+                } else {
+                    // If there isn't room in either of those places, then just
+                    // snap it to the left edge, high enough to not intersect
+                    // the graph line.
+                    attrs![
+                        "dx" => 1.0;
+                        "dy" => y(stats::percentile(data, 0.24) as f32) - 1.0;
+                        "text-anchor" => "begin";
+                        "dominant-baseline" => "baseline";
+                    ]
+                }
             },
             label_text,
         ]);

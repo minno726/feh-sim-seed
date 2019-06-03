@@ -70,6 +70,16 @@ impl GoalPreset {
             ColorlessFocus | AnyColorless => banner.focus_sizes[3] > 0,
         }
     }
+
+    fn is_single_target(&self) -> bool {
+        match self {
+            GoalPreset::RedFocus
+            | GoalPreset::BlueFocus
+            | GoalPreset::GreenFocus
+            | GoalPreset::ColorlessFocus => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,6 +119,15 @@ impl Goal {
         use crate::goal::GoalPreset::*;
         use crate::Color::*;
 
+        let count = if self.preset.is_single_target() && preset.is_single_target() {
+            // If we're switching from one preset to another and both have
+            // a single target, then preserve the number of copies that the
+            // old setting specified, if possible.
+            self.goals.get(0).map(|part| part.num_copies).unwrap_or(1)
+        } else {
+            1
+        };
+
         if self.preset != GoalPreset::Custom && preset == GoalPreset::Custom {
             // If we're switching from a preset to a custom goal, make
             // sure that the subgoals are in sync with that preset, since
@@ -126,7 +145,7 @@ impl Goal {
         let mut add_color_goal = |color: Color| {
             self.goals.push(GoalPart {
                 unit_color: color,
-                num_copies: 1,
+                num_copies: count,
             });
         };
         // Add an individual GoalPart for each focus unit that matches the
@@ -182,6 +201,7 @@ impl Goal {
         let data = base64::decode(s).ok()?;
         bincode::deserialize(&data).ok()
     }
+
 }
 
 pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
@@ -213,6 +233,35 @@ pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
     div![
         id!["goal_selector"],
         select,
+        if goal.preset.is_single_target() {
+            span![
+                label![
+                    attrs![
+                        At::For => "goal_count";
+                    ],
+                    "Count: ",
+                ],
+                input![
+                    id!["goal_count"],
+                    input_ev("input", |text| {
+                        if let Ok(quantity) = text.parse::<u8>() {
+                            Msg::GoalPartQuantityChange { index: 0, quantity }
+                        } else {
+                            Msg::Null
+                        }
+                    }),
+                    attrs! [
+                        At::Type => "number";
+                        At::Value => goal.goals[0].num_copies; // FIXME: only affects first goalpart
+                        At::Class => "small_number";
+                        At::Min => 1;
+                        At::Required => true;
+                    ],
+                ]
+            ]
+        } else {
+            seed::empty()
+        },
         if goal.preset == GoalPreset::Custom {
             advanced_goal_selector(goal)
         } else {

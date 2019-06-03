@@ -162,16 +162,14 @@ impl Sim {
         let focus_count = self.banner.focus_sizes[color as usize];
         let which_unit = self.rng.gen::<usize>() % focus_count as usize;
         if which_unit < self.goal_data.copies_needed[color as usize].len() {
-            if self.goal.kind == GoalKind::Any {
-                self.goal_data.color_needed = [false, false, false, false];
+            if self.goal_data.copies_needed[color as usize][which_unit] > 1 {
+                self.goal_data.copies_needed[color as usize][which_unit] -= 1;
             } else {
-                if self.goal_data.copies_needed[color as usize][which_unit] > 1 {
-                    self.goal_data.copies_needed[color as usize][which_unit] -= 1;
-                } else {
-                    self.goal_data.copies_needed[color as usize].remove(which_unit);
-                    if self.goal_data.copies_needed[color as usize].len() == 0 {
-                        self.goal_data.color_needed[color as usize] = false;
-                    }
+                self.goal_data.copies_needed[color as usize].remove(which_unit);
+                if self.goal.kind == GoalKind::Any {
+                    self.goal_data.color_needed = [false, false, false, false];
+                } else if self.goal_data.copies_needed[color as usize].len() == 0 {
+                    self.goal_data.color_needed[color as usize] = false;
                 }
             }
         }

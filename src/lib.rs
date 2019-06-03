@@ -145,6 +145,12 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
         }
         Msg::BannerFocusSizeChange { color, quantity } => {
             model.banner.focus_sizes[color as usize] = quantity;
+            // The preset's internal representation is dependent on the current
+            // banner's focus sizes, so this will keep them in sync properly.
+
+            if model.goal.preset != GoalPreset::Custom {
+                model.goal.set_preset(&model.banner, model.goal.preset);
+            }
             model.data.clear();
         }
         Msg::BannerRateChange { rates } => {
@@ -165,8 +171,6 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
             model.data.clear();
         }
         Msg::Run => {
-            // Ensure that the controls are in sync
-            model.goal.set_preset(&model.banner, model.goal.preset);
             if !model.goal.is_available(&model.banner) {
                 return;
             }

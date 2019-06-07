@@ -57,6 +57,7 @@ pub fn banner_selector(banner: &Banner) -> El<Msg> {
                 rate_option((3, 3), "3%/3% (Normal)"),
                 rate_option((5, 3), "5%/3% (Hero Fest)"),
                 rate_option((8, 0), "8%/0% (Legendary)"),
+                rate_option((4, 2), "4%/2% (Weekly Focus)"),
             ],
             input![
                 id!["new_unit_banner"],

@@ -87,6 +87,7 @@ impl TryFrom<u8> for Pool {
     }
 }
 
+/// The current page that the application is on.
 #[derive(Copy, Clone, Debug)]
 pub enum Page {
     Main,
@@ -100,37 +101,62 @@ impl Default for Page {
     }
 }
 
+/// Data model for the app.
 #[derive(Default, Debug)]
 struct Model {
+    /// The data that the simulation has gathered so far.
     pub data: Counter,
+    /// The parameters of the current banner.
     pub banner: Banner,
+    /// The paremeters of the current goal.
     pub goal: Goal,
+    /// The current page that the application is on.
     pub curr_page: Page,
+    /// The point on the graph that the user has chose to highlight.
     pub graph_highlight: Option<f32>,
 }
 
 // Update
 
+/// Event definition for the app.
 #[derive(Clone, Debug)]
 pub enum Msg {
+    /// Does nothing, not even re-render the page. Exists only to satisfy
+    /// static typing in some situations.
     Null,
+    /// Holds a collection of messages that will all be queued up at once.
     Multiple(Vec<Msg>),
+    /// Gather data.
     Run,
+    /// Change the number of focus units for a given color.
     BannerFocusSizeChange { color: Color, quantity: u8 },
+    /// Change the starting rates.
     BannerRateChange { rates: (u8, u8) },
+    /// Change whether the banner uses the old or new 5* pools.
     BannerFocusTypeToggle,
+    /// Replace the banner with a new one.
     BannerSet { banner: Banner },
+    /// Set the goal to a certain preset.
     GoalPresetChange { preset: GoalPreset },
+    /// Change the color for an individual unit target.
     GoalPartColorChange { index: usize, color: Color },
+    /// Change the number of copies for an individual unit target.
     GoalPartQuantityChange { index: usize, quantity: u8 },
+    /// Add a new individual unit target.
     GoalPartAdd { color: Color, quantity: u8 },
+    /// Change whether the individual targets all need to happen or just one.
     GoalKindChange { kind: GoalKind },
+    /// Replace the goal with a new one.
     GoalSet { goal: Goal },
+    /// Change which page of the application is open.
     PageChange(Page),
+    /// Generate a permalink that saves the application's paremeters.
     Permalink,
+    /// Highlight a point on the graph.
     GraphHighlight { frac: f32 },
 }
 
+/// Update model with the given message.
 fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
     log!(msg);
     match msg {
@@ -245,6 +271,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
 
 // View
 
+/// Display the current state.
 fn view(model: &Model) -> Vec<El<Msg>> {
     match model.curr_page {
         Page::Main => main_page(model),
@@ -253,6 +280,7 @@ fn view(model: &Model) -> Vec<El<Msg>> {
     }
 }
 
+/// Display the main page of the application.
 fn main_page(model: &Model) -> Vec<El<Msg>> {
     vec![
         header![
@@ -289,6 +317,7 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
     ]
 }
 
+/// Queue up messages based on the URL with which the application was loaded.
 fn routes(url: &seed::Url) -> Msg {
     let mut messages = vec![];
 

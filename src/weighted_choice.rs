@@ -1,6 +1,6 @@
 use rand::{distributions::Distribution, Rng};
 
-// Optimized version of rand::WeightedIndex for a fixed-size collection of floats.
+/// Optimized version of rand::WeightedIndex for a fixed-size collection of four floats.
 #[derive(Copy, Clone, Debug, Default)]
 pub struct WeightedIndex4 {
     // Cumulative weights stored for faster lookup
@@ -8,6 +8,7 @@ pub struct WeightedIndex4 {
 }
 
 impl WeightedIndex4 {
+    /// Constructs a sampler from the given weights. Weights do not need to sum to 1.
     pub fn new<T: Into<f32> + Copy>(values: [T; 4]) -> Self {
         let total = values[0].into() + values[1].into() + values[2].into() + values[3].into();
         Self {

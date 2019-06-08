@@ -1,5 +1,7 @@
 use std::ops::{Deref, DerefMut, Index, IndexMut};
 
+/// Associative array of u32 -> u32 with the interface and implementation optimized
+/// for use as a counter for small numbers with a dense distribution.
 #[derive(Default, Debug, Clone)]
 pub struct Counter {
     data: Vec<u32>,
@@ -8,12 +10,14 @@ pub struct Counter {
 impl Index<u32> for Counter {
     type Output = u32;
 
+    /// Infallible. Returns 0 if index is out of range.
     fn index(&self, index: u32) -> &Self::Output {
         self.data.get(index as usize).unwrap_or(&0)
     }
 }
 
 impl IndexMut<u32> for Counter {
+    /// Infallible. Resizes container if index is out of range.
     fn index_mut(&mut self, index: u32) -> &mut Self::Output {
         let index = index as usize;
         if index >= self.data.len() {

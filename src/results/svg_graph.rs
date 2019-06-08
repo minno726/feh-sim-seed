@@ -12,6 +12,10 @@ const YMIN: f32 = 0.0;
 const WIDTH: f32 = 100.0;
 const HEIGHT: f32 = 60.0;
 
+/// SVG elements for displaying the results within the graph. If `highlight` is
+/// given, places a label on the graph at the specified point. Otherwise, labels
+/// are placed at pre-set locations. Returns two elements, one for the line and
+/// one for the collection of labels.
 fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
     // Sample every 0.1% in ranges 0%-10% and 90%-100%, and every 1% in between.
     // Probabilities only change sharply near the extremes, so this makes things
@@ -21,15 +25,15 @@ fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
         .chain((10..90).map(|x| x as f32 / 100.0))
         .chain((900..1000).map(|x| x as f32 / 1000.0))
         .collect::<Vec<_>>();
-    let data_points = stats::percentiles(data, &sample_points); /*sample_points
-                                                                .iter()
-                                                                .map(|&x| stats::percentile(data, x) as f32)
-                                                                .collect::<Vec<_>>();*/
+    let data_points = stats::percentiles(data, &sample_points);
+
+    // Helper functions for converting between data values and graph coordinates.
     let x = |pct: f32| pct as f32 * WIDTH + XMIN;
     let y = |val: f32| {
         let max = *data_points.last().unwrap() as f32;
         HEIGHT - (val / max) * HEIGHT
     };
+
     let mut path = String::new();
     if !data.is_empty() {
         write!(
@@ -115,6 +119,9 @@ fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
     (path_el, points_el)
 }
 
+/// Graph for displaying the results. If `highlight` is given, places a label
+/// on the graph at the specified point. Otherwise, labels are placed at pre-set
+/// locations.
 pub fn graph(data: &Counter, highlight: Option<f32>) -> El<Msg> {
     let (path_el, points_el) = graph_line(data, highlight);
     fn get_graph_width(event: &web_sys::Event) -> Option<f64> {

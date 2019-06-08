@@ -8,11 +8,15 @@ use weighted_choice::WeightedIndex4;
 
 use goal::GoalKind;
 
+/// The results of a pull session.
 struct SessionResult {
     chosen_count: u32,
     reset: bool,
 }
 
+/// A structure holding the information for a sequence of summoning
+/// sessions done until a certain goal is reached. Keeps some cached information
+/// in order to make the simulation as fast as possible.
 #[derive(Debug)]
 pub struct Sim {
     banner: Banner,
@@ -22,6 +26,7 @@ pub struct Sim {
     goal_data: GoalData,
 }
 
+/// Precalculated tables for the probabilities of units being randomly chosen.
 #[derive(Debug, Copy, Clone, Default)]
 struct RandTables {
     pool_sizes: [[u8; 4]; 4],
@@ -29,7 +34,7 @@ struct RandTables {
     color_dists: [WeightedIndex4; 4],
 }
 
-// Scratch space for representing the goal in a way that is faster to work with
+/// Scratch space for representing the goal in a way that is faster to work with.
 #[derive(Debug, Clone)]
 struct GoalData {
     pub color_needed: [bool; 4],
@@ -43,6 +48,9 @@ impl GoalData {
 }
 
 impl Sim {
+    /// Creates a new simulator for the given banner and goal, doing some
+    /// moderately expensive initialization. Avoid running in a hot loop, but
+    /// it's not a problem to call somewhat frequently.
     pub fn new(banner: Banner, goal: Goal) -> Self {
         let mut sim = Sim {
             banner,
@@ -58,6 +66,7 @@ impl Sim {
         sim
     }
 
+    /// Initializes the precalculated tables used for fast random sampling.
     fn init_probability_tables(&mut self) {
         self.tables.pool_sizes = [
             [0, 0, 0, 0],
@@ -81,6 +90,7 @@ impl Sim {
         }
     }
 
+    // Initializes the internal representation of a goal.
     fn init_goal_data(&mut self) {
         self.goal_data.color_needed = [false, false, false, false];
         for i in 0..4 {
@@ -92,7 +102,7 @@ impl Sim {
         }
     }
 
-    // Simulates until reaching the specified goal, then returns # of orbs used
+    /// Simulates until reaching the current goal, then returns # of orbs used.
     pub fn roll_until_goal(&mut self) -> u32 {
         let mut pity_count = 0;
         let mut orb_count = 0;
@@ -122,8 +132,9 @@ impl Sim {
         }
     }
 
-    // Returns: number of items picked, number of items meeting the goal,
-    // and whether the rate reset
+    /// Given a session with five randomly-selected units, decides which ones
+    /// would be chosen to achieve the current goal, then evaluates the results
+    /// of choosing them.
     fn session_select(&mut self, samples: &[(Pool, Color); 5]) -> SessionResult {
         let mut result = SessionResult {
             chosen_count: 0,
@@ -131,7 +142,7 @@ impl Sim {
         };
         for i in 0..5 {
             let sample = samples[i];
-            if self.may_match_goal(sample) {
+            if self.may_match_goal(sample.1) {
                 result.chosen_count += 1;
                 result.reset |= self.pull_orb(sample);
                 if self.goal_data.is_met() {
@@ -148,11 +159,14 @@ impl Sim {
         result
     }
 
-    fn may_match_goal(&self, sample: (Pool, Color)) -> bool {
-        self.goal_data.color_needed[sample.1 as usize]
+    /// Specifies whether the color has the possibility of contributing towards
+    /// completing the current goal.
+    fn may_match_goal(&self, color: Color) -> bool {
+        self.goal_data.color_needed[color as usize]
     }
 
-    // Returns true if the rate should reset
+    /// Evaluates the result of selecting the given sample. Returns `true` if the
+    /// sample made the rate increase reset.
     fn pull_orb(&mut self, sample: (Pool, Color)) -> bool {
         let color = sample.1;
         let do_reset = sample.0 == Pool::Focus || sample.0 == Pool::Fivestar;
@@ -176,6 +190,7 @@ impl Sim {
         return do_reset;
     }
 
+    /// The total orb cost of choosing the given number of units from a session.
     fn orb_cost(count: u32) -> u32 {
         match count {
             1 => 5,
@@ -187,6 +202,8 @@ impl Sim {
         }
     }
 
+    /// Chooses a weighted random unit from the summoning pool. `pity_incr` is the
+    /// number of times that the 5* rates have increased by 0.5% total.
     fn sample(&mut self, pity_incr: u32) -> (Pool, Color) {
         let pool = self.tables.pool_dists[pity_incr as usize].sample(&mut self.rng) as u8;
         let color = self.tables.color_dists[pool as usize].sample(&mut self.rng) as u8;
@@ -196,7 +213,8 @@ impl Sim {
         )
     }
 
-    // [focus, fivestar, fourstar, threestar]
+    /// Calculates the actual probabilities of selecting a unit from each of the four
+    /// possible pools after a certain number of rate increases.
     fn probabilities(&self, pity_incr: u32) -> [f32; 4] {
         let bases = self.bases();
         let pity_pct = if pity_incr >= 25 {
@@ -218,6 +236,7 @@ impl Sim {
         probabilities
     }
 
+    /// Gives the base probabilities of selecting a unit from each pool.
     fn bases(&self) -> [f32; 4] {
         let (focus, fivestar) = self.banner.starting_rates;
         let focus = focus as f32;

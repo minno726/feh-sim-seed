@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{banner::Banner, Color, Msg};
 
+/// Pre-set options for common goals.
 #[derive(Copy, Clone, Debug, EnumIter, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GoalPreset {
     Custom,
@@ -59,6 +60,8 @@ impl TryFrom<u8> for GoalPreset {
 }
 
 impl GoalPreset {
+    /// Determines whether or not the selected preset is a goal that it is
+    /// possible to achieve on the banner.
     pub fn is_available(self, banner: &Banner) -> bool {
         use crate::goal::GoalPreset::*;
         match self {
@@ -71,6 +74,8 @@ impl GoalPreset {
         }
     }
 
+    /// Says whether or not the preset has only a single unit that counts for
+    /// completing the goal.
     fn is_single_target(&self) -> bool {
         match self {
             GoalPreset::RedFocus
@@ -82,18 +87,21 @@ impl GoalPreset {
     }
 }
 
+/// Whether the given goal is to achieve all of the goal parts or just a single one.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GoalKind {
     Any,
     All,
 }
 
+/// A single unit that the goal is trying to obtain.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct GoalPart {
     pub unit_color: Color,
     pub num_copies: u8,
 }
 
+/// The goal of a summoning session.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Goal {
     pub kind: GoalKind,
@@ -114,6 +122,8 @@ impl Default for Goal {
 }
 
 impl Goal {
+    /// Sets the goal to the provided preset, updating the internal structure
+    /// as needed.
     pub fn set_preset(&mut self, banner: &Banner, preset: GoalPreset) {
         use crate::goal::GoalKind::*;
         use crate::goal::GoalPreset::*;
@@ -186,7 +196,7 @@ impl Goal {
         }
     }
 
-    // Checks whether or not the goal is possible on the given banner.
+    /// Checks whether or not the goal is possible on the given banner.
     pub fn is_available(&self, banner: &Banner) -> bool {
         match self.preset {
             GoalPreset::Custom => self
@@ -197,6 +207,7 @@ impl Goal {
         }
     }
 
+    /// Parses data from the representation used in query strings to share settings.
     pub fn from_query_string(s: &str) -> Option<Self> {
         let data = base64::decode(s).ok()?;
         bincode::deserialize(&data).ok()
@@ -204,6 +215,7 @@ impl Goal {
 
 }
 
+/// Section for selecting the goal.
 pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
     let mut select = select![
         id!["goal"],
@@ -270,6 +282,8 @@ pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
     ]
 }
 
+/// Subsection for selecting the goal using the detailed representation instead of
+/// a preset.
 fn advanced_goal_selector(goal: &Goal) -> El<Msg> {
     let mut base = div![style!["margin-left" => "2em";]];
     if goal.goals.len() > 1 {

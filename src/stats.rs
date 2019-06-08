@@ -1,9 +1,12 @@
 use crate::counter::Counter;
 
+/// Calculates the given percentile of the data. `pct` is in the range [0.0, 1.0]
 pub fn percentile(data: &Counter, pct: f32) -> u32 {
     percentiles(data, &[pct])[0]
 }
 
+/// Calculates multiple percentiles in bulk. `pcts` must be sorted in ascending order
+/// with every value in the range [0.0, 1.0].
 pub fn percentiles(data: &Counter, pcts: &[f32]) -> Vec<u32> {
     debug_assert!(pcts.iter().all(|&x| x >= 0.0 && x <= 1.0));
     debug_assert!((0..pcts.len() - 1).all(|idx| pcts[idx + 1] >= pcts[idx]));

@@ -2,6 +2,7 @@ use seed::prelude::*;
 
 use crate::{Color, Msg};
 
+/// Representation of a summoning focus.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Banner {
     pub focus_sizes: [u8; 4],
@@ -20,12 +21,14 @@ impl Default for Banner {
 }
 
 impl Banner {
+    /// Parses data from the representation used in query strings to share settings.
     pub fn from_query_string(s: &str) -> Option<Self> {
         let data = base64::decode(s).ok()?;
         bincode::deserialize(&data).ok()
     }
 }
 
+/// Section for choosing banner parameters.
 pub fn banner_selector(banner: &Banner) -> El<Msg> {
     let rate_option = |rates: (u8, u8), label: &str| -> El<Msg> {
         let mut attrs = attrs![

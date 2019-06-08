@@ -6,7 +6,9 @@
 
 * Make the graph interactive.
 
-* Add support for the April 2019 change to 5\* pools on new heroes banners.
+* Add support for the change to 5\* pools on new heroes banners.
+
+* Add support for weekly revival banners.
 
 #### v0.0.3 - 7 Mar 2019
 

@@ -7,12 +7,14 @@ Choose a goal from the dropdown menu. The options are:
 * **Custom goal** - details below.
 * **Any focus unit** - take every orb that has a focus unit, and continue until any focus unit appears.
 * **All focus units** - take every orb that has a focus unit that hasn't been acquired yet, and continue until they have all appeared.
-* **Specific <color> focus unit** - take every orb of that color, and continue until a certain one of that color's focus units appears, ignoring any others that share that color. When the *count* is above 1, the unit will need to appear multiple times.
-* **Any <color> focus unit** - take every orb of that color, and continue until any of the focus units from that color appears.
+* **Specific \<color\> focus unit** - take every orb of that color, and continue until a certain one of that color's focus units appears, ignoring any others that share that color. When the *count* is above 1, the unit will need to appear multiple times.
+* **Any \<color\> focus unit** - take every orb of that color, and continue until any of the focus units from that color appears.
 
 #### Custom goals
 
 For examples of how they work, you can choose a preset and then switch to a custom goal to see what that preset is actually doing. Each goal is a collection of individual unit targets. The simulator will continue until one of those targets appears or until all of those targets have appeared, depending on the all vs. any setting. When there are multiple targets for the same color, they each represent a different focus unit.
+
+For example, if you want a +10 of the new legendary hero and also to pick up one copy of another unit on a different color, set the selector to "All of these" instead of "Any of these" and create two entries: 11 copies of a specific \<legendary color\> unit, and 1 copy of a specific \<other color\> unit. The simulation will then pull every orb that is either one of those colors until either that other unit has appeared or the legendary unit has appeared 11 times, and then continues on just one color until the other goal happens too.
 
 ### Banner selection
 

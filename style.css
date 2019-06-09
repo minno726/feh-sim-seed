@@ -6,12 +6,30 @@ input.small_number {
     width: 3em;
 }
 
+.padleft {
+    margin-left: 0.5em;
+}
+
+#focus_counts > label {
+    margin-left: 0.5em;
+}
+
 #goal {
     width: 12em;
 }
 
 #content > div {
     padding: 0.5em 0;
+}
+
+#permalink {
+    cursor: pointer;
+    opacity: 0.2;
+    height: 0.6em;
+}
+
+#permalink:hover {
+    opacity: 1;
 }
 
 #graph {

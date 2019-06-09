@@ -323,18 +323,78 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
             id!["content"],
             goal::goal_selector(&model.goal, &model.banner),
             banner::banner_selector(&model.banner),
-            button!["Permalink", simple_ev(Ev::Click, Msg::Permalink),],
-            button![
-                simple_ev(Ev::Click, Msg::Run),
-                if !model.goal.is_available(&model.banner) {
-                    attrs![At::Disabled => true]
-                } else {
-                    attrs![]
-                },
-                if model.data.is_empty() { "Run" } else { "More" }
+            div![
+                style![
+                    "display" => "flex";
+                    "align-items" => "center";
+                ],
+                button![
+                    simple_ev(Ev::Click, Msg::Run),
+                    if !model.goal.is_available(&model.banner) {
+                        attrs![At::Disabled => true]
+                    } else {
+                        attrs![]
+                    },
+                    if model.data.is_empty() { "Run" } else { "More" }
+                ],
+                permalink(),
             ],
+
             results::results(&model.data, model.graph_highlight),
         ],
+    ]
+}
+
+fn permalink() -> El<Msg> {
+    svg![
+        id!["permalink"],
+        class!["padleft"],
+        simple_ev(Ev::Click, Msg::Permalink),
+        attrs![
+            At::ViewBox => "0 0 150 50";
+        ],
+        rect![attrs![
+            At::Width => 60;
+            At::Height => 50;
+            "rx" => 25;
+            "x" => 5;
+        ]],
+        rect![attrs![
+            At::Width => 40;
+            At::Height => 30;
+            "rx" => 15;
+            At::Fill => "white";
+            "x" => 15;
+            "y" => 10;
+        ]],
+        rect![attrs![
+            At::Width => 60;
+            At::Height => 50;
+            "rx" => 25;
+            "x" => 75;
+        ]],
+        rect![attrs![
+            At::Width => 40;
+            At::Height => 30;
+            "rx" => 15;
+            At::Fill => "white";
+            "x" => 85;
+            "y" => 10;
+        ]],
+        rect![attrs![
+            At::Width => 65;
+            At::Height => 15;
+            At::Fill => "white";
+            "x" => 35;
+            "y" => 17.5;
+        ]],
+        rect![attrs![
+            At::Width => 60;
+            At::Height => 10;
+            "rx" => 5;
+            "x" => 40;
+            "y" => 20;
+        ]]
     ]
 }
 

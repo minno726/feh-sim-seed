@@ -131,7 +131,11 @@ impl Goal {
             Goal::Custom(custom) => return custom.clone(),
         };
 
-        let count = if preset.is_single_target() { count } else { 1 };
+        let count = if preset.is_single_target() {
+            count.max(1)
+        } else {
+            1
+        };
 
         let kind = match preset {
             AllFocus => All,
@@ -269,12 +273,16 @@ pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
                             if let Ok(quantity) = text.parse::<u8>() {
                                 Msg::GoalPresetQuantityChange { quantity }
                             } else {
-                                Msg::Null
+                                Msg::GoalPresetQuantityChange { quantity: 0 }
                             }
                         }),
                         attrs! [
                             At::Type => "number";
-                            At::Value => count;
+                            At::Value => if *count > 0 {
+                                count.to_string()
+                            } else {
+                                "".to_string()
+                            };
                             At::Class => "small_number";
                             At::Min => 1;
                             At::Required => true;

@@ -78,7 +78,9 @@ impl Sim {
             [32, 31, 20, 28],
             [32, 29, 19, 28],
         ];
-        self.tables.pool_sizes[0] = self.banner.focus_sizes;
+        for i in 0..4 {
+            self.tables.pool_sizes[0][i] = self.banner.focus_sizes[i].max(0) as u8;
+        }
 
         for color in 0..4 {
             self.tables.color_dists[color] = WeightedIndex4::new(self.tables.pool_sizes[color]);

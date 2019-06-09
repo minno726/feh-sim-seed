@@ -129,7 +129,7 @@ pub enum Msg {
     /// Gather data.
     Run,
     /// Change the number of focus units for a given color.
-    BannerFocusSizeChange { color: Color, quantity: u8 },
+    BannerFocusSizeChange { color: Color, quantity: i8 },
     /// Change the starting rates.
     BannerRateChange { rates: (u8, u8) },
     /// Change whether the banner uses the old or new 5* pools.

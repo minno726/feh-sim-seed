@@ -138,6 +138,10 @@ pub enum Msg {
     BannerSet { banner: Banner },
     /// Set the goal to a certain preset.
     GoalPresetChange { preset: GoalPreset },
+    /// Set the number of copies to use for the preset.
+    GoalPresetQuantityChange { quantity: u8 },
+    /// Change the current preset into a custom goal.
+    GoalMakeCustom,
     /// Change the color for an individual unit target.
     GoalPartColorChange { index: usize, color: Color },
     /// Change the number of copies for an individual unit target.
@@ -171,12 +175,6 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
         }
         Msg::BannerFocusSizeChange { color, quantity } => {
             model.banner.focus_sizes[color as usize] = quantity;
-            // The preset's internal representation is dependent on the current
-            // banner's focus sizes, so this will keep them in sync properly.
-
-            if model.goal.preset != GoalPreset::Custom {
-                model.goal.set_preset(&model.banner, model.goal.preset);
-            }
             model.data.clear();
         }
         Msg::BannerRateChange { rates } => {
@@ -220,33 +218,56 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
             model.graph_highlight = None;
         }
         Msg::GoalPresetChange { preset } => {
+            let count = if let Goal::Preset(_, count) = model.goal {
+                count
+            } else {
+                1
+            };
             if preset.is_available(&model.banner) {
-                model.goal.set_preset(&model.banner, preset);
+                model.goal = Goal::Preset(preset, count);
+                model.data.clear();
             }
-            model.data.clear();
+        }
+        Msg::GoalPresetQuantityChange { quantity } => {
+            if let Goal::Preset(_, count) = &mut model.goal {
+                *count = quantity;
+                model.data.clear();
+            }
         }
         Msg::GoalPartColorChange { index, color } => {
-            model.goal.goals[index].unit_color = color;
+            if let Goal::Custom(custom_goal) = &mut model.goal {
+                custom_goal.goals[index].unit_color = color;
+                model.data.clear();
+            }
+        }
+        Msg::GoalMakeCustom => {
+            model.goal = Goal::Custom(model.goal.as_custom(&model.banner));
             model.data.clear();
         }
         Msg::GoalPartQuantityChange { index, quantity } => {
-            if quantity == 0 {
-                model.goal.goals.remove(index);
-            } else {
-                model.goal.goals[index].num_copies = quantity;
+            if let Goal::Custom(custom_goal) = &mut model.goal {
+                if quantity == 0 {
+                    custom_goal.goals.remove(index);
+                } else {
+                    custom_goal.goals[index].num_copies = quantity;
+                }
+                model.data.clear();
             }
-            model.data.clear();
         }
         Msg::GoalPartAdd { color, quantity } => {
-            model.goal.goals.push(GoalPart {
-                unit_color: color,
-                num_copies: quantity,
-            });
-            model.data.clear();
+            if let Goal::Custom(custom_goal) = &mut model.goal {
+                custom_goal.goals.push(GoalPart {
+                    unit_color: color,
+                    num_copies: quantity,
+                });
+                model.data.clear();
+            }
         }
         Msg::GoalKindChange { kind } => {
-            model.goal.kind = kind;
-            model.data.clear();
+            if let Goal::Custom(custom_goal) = &mut model.goal {
+                custom_goal.kind = kind;
+                model.data.clear();
+            }
         }
         Msg::GoalSet { goal } => {
             model.goal = goal;

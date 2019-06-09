@@ -6,7 +6,7 @@ use rand::Rng;
 
 use weighted_choice::WeightedIndex4;
 
-use goal::GoalKind;
+use goal::{GoalKind, CustomGoal};
 
 /// The results of a pull session.
 struct SessionResult {
@@ -20,7 +20,7 @@ struct SessionResult {
 #[derive(Debug)]
 pub struct Sim {
     banner: Banner,
-    goal: Goal,
+    goal: CustomGoal,
     tables: RandTables,
     rng: rand::rngs::SmallRng,
     goal_data: GoalData,
@@ -54,7 +54,7 @@ impl Sim {
     pub fn new(banner: Banner, goal: Goal) -> Self {
         let mut sim = Sim {
             banner,
-            goal,
+            goal: goal.as_custom(&banner),
             tables: RandTables::default(),
             rng: rand::rngs::SmallRng::from_entropy(),
             goal_data: GoalData {

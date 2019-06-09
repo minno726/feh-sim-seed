@@ -13,7 +13,6 @@ use crate::{banner::Banner, Color, Msg};
 /// Pre-set options for common goals.
 #[derive(Copy, Clone, Debug, EnumIter, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GoalPreset {
-    Custom,
     AnyFocus,
     AllFocus,
     RedFocus,
@@ -30,7 +29,6 @@ impl fmt::Display for GoalPreset {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use crate::goal::GoalPreset::*;
         let s = match *self {
-            Custom => "Custom goal",
             AnyFocus => "Any focus unit",
             AllFocus => "All focus units",
             RedFocus => "Specific red focus unit",
@@ -65,7 +63,6 @@ impl GoalPreset {
     pub fn is_available(self, banner: &Banner) -> bool {
         use crate::goal::GoalPreset::*;
         match self {
-            Custom => true,
             AnyFocus | AllFocus => banner.focus_sizes.iter().any(|&x| x > 0),
             RedFocus | AnyRed => banner.focus_sizes[0] > 0,
             BlueFocus | AnyBlue => banner.focus_sizes[1] > 0,
@@ -101,59 +98,53 @@ pub struct GoalPart {
     pub num_copies: u8,
 }
 
-/// The goal of a summoning session.
+/// The flexible representation of a goal
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Goal {
+pub struct CustomGoal {
     pub kind: GoalKind,
     pub goals: Vec<GoalPart>,
-    pub preset: GoalPreset,
+}
+
+/// The goal of a summoning session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Goal {
+    Custom(CustomGoal),
+    Preset(GoalPreset, u8),
 }
 
 impl Default for Goal {
     fn default() -> Self {
-        let mut goal = Goal {
-            kind: GoalKind::Any,
-            goals: vec![],
-            preset: GoalPreset::AnyFocus,
-        };
-        goal.set_preset(&Banner::default(), goal.preset);
-        goal
+        Goal::Preset(GoalPreset::AnyFocus, 1)
     }
 }
 
 impl Goal {
-    /// Sets the goal to the provided preset, updating the internal structure
-    /// as needed.
-    pub fn set_preset(&mut self, banner: &Banner, preset: GoalPreset) {
+    /// Convert the current preset into a custom goal or retreive the current
+    /// custom goal.
+    pub fn as_custom(&self, banner: &Banner) -> CustomGoal {
         use crate::goal::GoalKind::*;
         use crate::goal::GoalPreset::*;
         use crate::Color::*;
 
-        let count = if self.preset.is_single_target() && preset.is_single_target() {
-            // If we're switching from one preset to another and both have
-            // a single target, then preserve the number of copies that the
-            // old setting specified, if possible.
-            self.goals.get(0).map(|part| part.num_copies).unwrap_or(1)
-        } else {
-            1
+        let (preset, count) = match self {
+            Goal::Preset(preset, count) => (*preset, *count),
+            Goal::Custom(custom) => return custom.clone(),
         };
 
-        if self.preset != GoalPreset::Custom && preset == GoalPreset::Custom {
-            // If we're switching from a preset to a custom goal, make
-            // sure that the subgoals are in sync with that preset, since
-            // they're about to be displayed to the user for editing.
-            self.set_preset(banner, self.preset);
-        }
-        self.preset = preset;
-        self.kind = match preset {
-            Custom => return,
+        let count = if preset.is_single_target() { count } else { 1 };
+
+        let kind = match preset {
             AllFocus => All,
             // Every other preset is either Any* or has only one target
             _ => Any,
         };
-        self.goals.clear();
+        let mut custom_goal = CustomGoal {
+            kind,
+            goals: vec![],
+        };
+
         let mut add_color_goal = |color: Color| {
-            self.goals.push(GoalPart {
+            custom_goal.goals.push(GoalPart {
                 unit_color: color,
                 num_copies: count,
             });
@@ -161,7 +152,6 @@ impl Goal {
         // Add an individual GoalPart for each focus unit that matches the
         // conditions of the overall goal.
         match preset {
-            Custom => unreachable!(),
             AllFocus | AnyFocus => {
                 for idx in 0..banner.focus_sizes.len() {
                     for _ in 0..banner.focus_sizes[idx] {
@@ -194,16 +184,18 @@ impl Goal {
                 }
             }
         }
+
+        custom_goal
     }
 
     /// Checks whether or not the goal is possible on the given banner.
     pub fn is_available(&self, banner: &Banner) -> bool {
-        match self.preset {
-            GoalPreset::Custom => self
+        match self {
+            Goal::Custom(custom_goal) => custom_goal
                 .goals
                 .iter()
                 .any(|&GoalPart { unit_color, .. }| banner.focus_sizes[unit_color as usize] > 0),
-            _ => self.preset.is_available(banner),
+            Goal::Preset(preset, _) => preset.is_available(banner),
         }
     }
 
@@ -226,161 +218,182 @@ pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
                 .and_then(|id| GoalPreset::try_from(id).ok())
             {
                 Msg::GoalPresetChange { preset }
+            } else if text == "custom" {
+                Msg::GoalMakeCustom
             } else {
                 Msg::Null
             }
         }),
     ];
+    select.add_child(option![
+        attrs![
+            At::Value => "custom";
+        ],
+        if let Goal::Custom(_) = goal {
+            attrs![
+                At::Selected => "";
+            ]
+        } else {
+            attrs![]
+        },
+        "Custom goal",
+    ]);
     for preset in GoalPreset::iter() {
         let mut attrs = attrs! [
             At::Value => preset as usize;
         ];
         if !preset.is_available(banner) {
             attrs.add(At::Disabled, "");
-        } else if preset == goal.preset {
-            attrs.add(At::Selected, "");
+        } else if let Goal::Preset(goal_preset, _) = goal {
+            if *goal_preset == preset {
+                attrs.add(At::Selected, "");
+            }
         }
         select.add_child(option![attrs, preset.to_string(),])
     }
     div![
         id!["goal_selector"],
         select,
-        if goal.preset.is_single_target() {
-            span![
-                label![
-                    attrs![
-                        At::For => "goal_count";
+        if let Goal::Preset(preset, count) = goal {
+            if preset.is_single_target() {
+                span![
+                    label![
+                        attrs![
+                            At::For => "goal_count";
+                        ],
+                        "Count: ",
                     ],
-                    "Count: ",
-                ],
-                input![
-                    id!["goal_count"],
-                    input_ev("input", |text| {
-                        if let Ok(quantity) = text.parse::<u8>() {
-                            Msg::GoalPartQuantityChange { index: 0, quantity }
-                        } else {
-                            Msg::Null
-                        }
-                    }),
-                    attrs! [
-                        At::Type => "number";
-                        At::Value => goal.goals[0].num_copies; // FIXME: only affects first goalpart
-                        At::Class => "small_number";
-                        At::Min => 1;
-                        At::Required => true;
-                    ],
+                    input![
+                        id!["goal_count"],
+                        input_ev("input", |text| {
+                            if let Ok(quantity) = text.parse::<u8>() {
+                                Msg::GoalPresetQuantityChange { quantity }
+                            } else {
+                                Msg::Null
+                            }
+                        }),
+                        attrs! [
+                            At::Type => "number";
+                            At::Value => count;
+                            At::Class => "small_number";
+                            At::Min => 1;
+                            At::Required => true;
+                        ],
+                    ]
                 ]
-            ]
+            } else {
+                seed::empty()
+            }
         } else {
             seed::empty()
         },
-        if goal.preset == GoalPreset::Custom {
-            advanced_goal_selector(goal)
-        } else {
-            seed::empty()
-        },
+        advanced_goal_selector(goal),
     ]
 }
 
 /// Subsection for selecting the goal using the detailed representation instead of
 /// a preset.
 fn advanced_goal_selector(goal: &Goal) -> El<Msg> {
-    let mut base = div![style!["margin-left" => "2em";]];
-    if goal.goals.len() > 1 {
-        base.add_child(select![
-            input_ev(Ev::Input, |text| match &*text {
-                "Any" => Msg::GoalKindChange {
-                    kind: GoalKind::Any
-                },
-                "All" => Msg::GoalKindChange {
-                    kind: GoalKind::All
-                },
-                _ => Msg::Null,
-            }),
-            option![
-                attrs![
-                    At::Value => "Any";
-                ],
-                if goal.kind == GoalKind::Any {
-                    attrs![At::Selected => ""]
-                } else {
-                    attrs![]
-                },
-                "Any of these",
-            ],
-            option![
-                attrs![
-                    At::Value => "All";
-                ],
-                if goal.kind == GoalKind::All {
-                    attrs![At::Selected => ""]
-                } else {
-                    attrs![]
-                },
-                "All of these",
-            ],
-        ]);
-    }
-
-    for (index, goal_part) in goal.goals.iter().enumerate() {
-        let mut color_select = select![input_ev(Ev::Input, move |value| {
-            if let Some(color) = value
-                .parse::<u8>()
-                .ok()
-                .and_then(|num| Color::try_from(num).ok())
-            {
-                Msg::GoalPartColorChange { index, color }
-            } else {
-                Msg::Null
-            }
-        }),];
-        for color in Color::iter() {
-            let mut attrs = attrs![At::Value => color as usize];
-            if goal_part.unit_color == color {
-                attrs.add(At::Selected, "");
-            }
-            color_select.add_child(option![attrs, color.to_string()])
-        }
-        base.add_child(div![
-            button![
-                simple_ev(
-                    Ev::Click,
-                    Msg::GoalPartQuantityChange { index, quantity: 0 }
-                ),
-                "X",
-            ],
-            input![
-                input_ev(Ev::Input, move |value| {
-                    if let Ok(quantity) = value.parse::<u8>() {
-                        Msg::GoalPartQuantityChange { index, quantity }
-                    } else {
-                        Msg::Null
-                    }
+    if let Goal::Custom(custom_goal) = goal {
+        let mut base = div![style!["margin-left" => "2em";]];
+        if custom_goal.goals.len() > 1 {
+            base.add_child(select![
+                input_ev(Ev::Input, |text| match &*text {
+                    "Any" => Msg::GoalKindChange {
+                        kind: GoalKind::Any
+                    },
+                    "All" => Msg::GoalKindChange {
+                        kind: GoalKind::All
+                    },
+                    _ => Msg::Null,
                 }),
-                attrs![
-                    At::Type => "number";
-                    At::Class => "small_number";
-                    At::Min => 0;
-                    At::Required => true;
-                    At::Value => goal_part.num_copies;
-                ]
-            ],
-            " copies of a specific ",
-            color_select,
-            " unit",
-        ]);
-    }
+                option![
+                    attrs![
+                        At::Value => "Any";
+                    ],
+                    if custom_goal.kind == GoalKind::Any {
+                        attrs![At::Selected => ""]
+                    } else {
+                        attrs![]
+                    },
+                    "Any of these",
+                ],
+                option![
+                    attrs![
+                        At::Value => "All";
+                    ],
+                    if custom_goal.kind == GoalKind::All {
+                        attrs![At::Selected => ""]
+                    } else {
+                        attrs![]
+                    },
+                    "All of these",
+                ],
+            ]);
+        }
 
-    base.add_child(button![
-        simple_ev(
-            Ev::Click,
-            Msg::GoalPartAdd {
-                color: Color::Red,
-                quantity: 1
+        for (index, goal_part) in custom_goal.goals.iter().enumerate() {
+            let mut color_select = select![input_ev(Ev::Input, move |value| {
+                if let Some(color) = value
+                    .parse::<u8>()
+                    .ok()
+                    .and_then(|num| Color::try_from(num).ok())
+                {
+                    Msg::GoalPartColorChange { index, color }
+                } else {
+                    Msg::Null
+                }
+            }),];
+            for color in Color::iter() {
+                let mut attrs = attrs![At::Value => color as usize];
+                if goal_part.unit_color == color {
+                    attrs.add(At::Selected, "");
+                }
+                color_select.add_child(option![attrs, color.to_string()])
             }
-        ),
-        "+",
-    ]);
+            base.add_child(div![
+                button![
+                    simple_ev(
+                        Ev::Click,
+                        Msg::GoalPartQuantityChange { index, quantity: 0 }
+                    ),
+                    "X",
+                ],
+                input![
+                    input_ev(Ev::Input, move |value| {
+                        if let Ok(quantity) = value.parse::<u8>() {
+                            Msg::GoalPartQuantityChange { index, quantity }
+                        } else {
+                            Msg::Null
+                        }
+                    }),
+                    attrs![
+                        At::Type => "number";
+                        At::Class => "small_number";
+                        At::Min => 0;
+                        At::Required => true;
+                        At::Value => goal_part.num_copies;
+                    ]
+                ],
+                " copies of a specific ",
+                color_select,
+                " unit",
+            ]);
+        }
 
-    base
+        base.add_child(button![
+            simple_ev(
+                Ev::Click,
+                Msg::GoalPartAdd {
+                    color: Color::Red,
+                    quantity: 1
+                }
+            ),
+            "+",
+        ]);
+
+        base
+    } else {
+        seed::empty()
+    }
 }

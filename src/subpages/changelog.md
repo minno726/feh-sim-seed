@@ -1,6 +1,8 @@
-#### v0.1.0 - Date TBD
+#### v0.1.0 - 9 Jun 2019
 
 * Add advanced goals.
+
+* Add more preset goals.
 
 * Add permalink for saving/sharing banner and goal settings.
 

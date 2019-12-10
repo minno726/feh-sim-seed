@@ -208,7 +208,6 @@ impl Goal {
         let data = base64::decode(s).ok()?;
         bincode::deserialize(&data).ok()
     }
-
 }
 
 /// Section for selecting the goal.

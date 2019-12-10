@@ -6,7 +6,7 @@ use rand::Rng;
 
 use weighted_choice::WeightedIndex4;
 
-use goal::{GoalKind, CustomGoal};
+use goal::{CustomGoal, GoalKind};
 
 /// The results of a pull session.
 struct SessionResult {
@@ -71,12 +71,12 @@ impl Sim {
         self.tables.pool_sizes = [
             [0, 0, 0, 0],
             if self.banner.new_units {
-                [21, 16, 16, 9]
+                [30, 24, 24, 19]
             } else {
-                [41, 28, 24, 19]
+                [50, 35, 32, 27]
             },
-            [32, 31, 20, 28],
-            [32, 29, 19, 28],
+            [33, 32, 23, 34],
+            [33, 30, 20, 30],
         ];
         for i in 0..4 {
             self.tables.pool_sizes[0][i] = self.banner.focus_sizes[i].max(0) as u8;
@@ -241,11 +241,17 @@ impl Sim {
     /// Gives the base probabilities of selecting a unit from each pool.
     fn bases(&self) -> [f32; 4] {
         let (focus, fivestar) = self.banner.starting_rates;
-        let focus = focus as f32;
-        let fivestar = fivestar as f32;
-        let fivestar_total = focus + fivestar;
-        let fourstar = (100.0 - fivestar_total) * 58.0 / 94.0;
-        let threestar = (100.0 - fivestar_total) * 36.0 / 94.0;
-        [focus, fivestar, fourstar, threestar]
+        if (focus, fivestar) == (6, 0) {
+            // The lower-rarity breakdown on this new banner is different
+            // for no apparent reason
+            [6.0, 0.0, 60.0, 34.0]
+        } else {
+            let focus = focus as f32;
+            let fivestar = fivestar as f32;
+            let fivestar_total = focus + fivestar;
+            let fourstar = (100.0 - fivestar_total) * 58.0 / 94.0;
+            let threestar = (100.0 - fivestar_total) * 36.0 / 94.0;
+            [focus, fivestar, fourstar, threestar]
+        }
     }
 }

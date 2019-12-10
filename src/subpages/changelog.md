@@ -1,3 +1,9 @@
+#### v0.1.1 - 10 Dec 2019
+
+* Add new "double special heroes" banner type.
+
+* Update summoning pool sizes.
+
 #### v0.1.0 - 9 Jun 2019
 
 * Add advanced goals.

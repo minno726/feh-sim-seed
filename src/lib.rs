@@ -184,6 +184,9 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
                 // Convenient handling for legendary banners, since they
                 // always have the same focus pool sizes.
                 model.banner.focus_sizes = [3, 3, 3, 3];
+            } else if rates == (6, 0) {
+                // Another special kind of banner
+                model.banner.focus_sizes = [2, 2, 2, 2];
             }
         }
         Msg::BannerFocusTypeToggle => {
@@ -339,7 +342,6 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
                 ],
                 permalink(),
             ],
-
             results::results(&model.data, model.graph_highlight),
         ],
     ]

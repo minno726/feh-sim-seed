@@ -161,7 +161,7 @@ pub enum Msg {
 }
 
 /// Update model with the given message.
-fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
+fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
     log!(msg);
     match msg {
         Msg::Null => {
@@ -296,7 +296,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut Orders<Msg>) {
 // View
 
 /// Display the current state.
-fn view(model: &Model) -> Vec<El<Msg>> {
+fn view(model: &Model) -> Vec<Node<Msg>> {
     match model.curr_page {
         Page::Main => main_page(model),
         Page::Help => subpages::help(),
@@ -305,7 +305,7 @@ fn view(model: &Model) -> Vec<El<Msg>> {
 }
 
 /// Display the main page of the application.
-fn main_page(model: &Model) -> Vec<El<Msg>> {
+fn main_page(model: &Model) -> Vec<Node<Msg>> {
     vec![
         header![
             a![
@@ -347,7 +347,7 @@ fn main_page(model: &Model) -> Vec<El<Msg>> {
     ]
 }
 
-fn permalink() -> El<Msg> {
+fn permalink() -> Node<Msg> {
     svg![
         id!["permalink"],
         class!["padleft"],
@@ -401,7 +401,7 @@ fn permalink() -> El<Msg> {
 }
 
 /// Queue up messages based on the URL with which the application was loaded.
-fn routes(url: &seed::Url) -> Msg {
+fn routes(url: seed::Url) -> Option<Msg> {
     let mut messages = vec![];
 
     messages.push(match url.path.get(1).map(String::as_str) {
@@ -410,25 +410,28 @@ fn routes(url: &seed::Url) -> Msg {
         _ => Msg::PageChange(Page::Main),
     });
 
-    if let Some(banner) = query_string::get(url, "banner").and_then(Banner::from_query_string) {
+    if let Some(banner) = query_string::get(&url, "banner").and_then(Banner::from_query_string) {
         messages.push(Msg::BannerSet { banner });
     }
 
-    if let Some(goal) = query_string::get(url, "goal").and_then(Goal::from_query_string) {
+    if let Some(goal) = query_string::get(&url, "goal").and_then(Goal::from_query_string) {
         messages.push(Msg::GoalSet { goal });
     }
 
-    if let Some("1") = query_string::get(url, "run") {
+    if let Some("1") = query_string::get(&url, "run") {
         messages.push(Msg::Run);
     }
 
-    Msg::Multiple(messages)
+    if messages.is_empty() {
+        None
+    } else {
+        Some(Msg::Multiple(messages))
+    }
 }
 
 #[wasm_bindgen]
 pub fn render() {
-    seed::App::build(Model::default(), update, view)
+    seed::App::builder(update, view)
         .routes(routes)
-        .finish()
-        .run();
+        .build_and_start();
 }

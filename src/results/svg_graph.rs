@@ -16,7 +16,7 @@ const HEIGHT: f32 = 60.0;
 /// given, places a label on the graph at the specified point. Otherwise, labels
 /// are placed at pre-set locations. Returns two elements, one for the line and
 /// one for the collection of labels.
-fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
+fn graph_line(data: &Counter, highlight: Option<f32>) -> (Node<Msg>, Node<Msg>) {
     // Sample every 0.1% in ranges 0%-10% and 90%-100%, and every 1% in between.
     // Probabilities only change sharply near the extremes, so this makes things
     // render more quickly without hurting smoothness.
@@ -122,7 +122,7 @@ fn graph_line(data: &Counter, highlight: Option<f32>) -> (El<Msg>, El<Msg>) {
 /// Graph for displaying the results. If `highlight` is given, places a label
 /// on the graph at the specified point. Otherwise, labels are placed at pre-set
 /// locations.
-pub fn graph(data: &Counter, highlight: Option<f32>) -> El<Msg> {
+pub fn graph(data: &Counter, highlight: Option<f32>) -> Node<Msg> {
     let (path_el, points_el) = graph_line(data, highlight);
     fn get_graph_width(event: &web_sys::Event) -> Option<f64> {
         let target = event.target()?;

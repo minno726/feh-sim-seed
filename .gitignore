@@ -1,5 +1,4 @@
 /target
-Cargo.lock
 /pkg
 serve.py
 favicon.ico

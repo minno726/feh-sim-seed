@@ -211,7 +211,7 @@ impl Goal {
 }
 
 /// Section for selecting the goal.
-pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
+pub fn goal_selector(goal: &Goal, banner: &Banner) -> Node<Msg> {
     let mut select = select![
         id!["goal"],
         input_ev("input", |text| {
@@ -252,7 +252,7 @@ pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
                 attrs.add(At::Selected, "");
             }
         }
-        select.add_child(option![attrs, preset.to_string(),])
+        select.add_child(option![attrs, preset.to_string(),]);
     }
     div![
         id!["goal_selector"],
@@ -300,7 +300,7 @@ pub fn goal_selector(goal: &Goal, banner: &Banner) -> El<Msg> {
 
 /// Subsection for selecting the goal using the detailed representation instead of
 /// a preset.
-fn advanced_goal_selector(goal: &Goal) -> El<Msg> {
+fn advanced_goal_selector(goal: &Goal) -> Node<Msg> {
     if let Goal::Custom(custom_goal) = goal {
         let mut base = div![style!["margin-left" => "2em";]];
         if custom_goal.goals.len() > 1 {
@@ -356,7 +356,7 @@ fn advanced_goal_selector(goal: &Goal) -> El<Msg> {
                 if goal_part.unit_color == color {
                     attrs.add(At::Selected, "");
                 }
-                color_select.add_child(option![attrs, color.to_string()])
+                color_select.add_child(option![attrs, color.to_string()]);
             }
             base.add_child(div![
                 button![

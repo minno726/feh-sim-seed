@@ -1,8 +1,9 @@
 use crate::*;
 
 use rand::distributions::Distribution;
-use rand::FromEntropy;
-use rand::Rng;
+
+use rand::rngs::SmallRng;
+use rand::{Rng, SeedableRng};
 
 use weighted_choice::WeightedIndex4;
 
@@ -22,7 +23,7 @@ pub struct Sim {
     banner: Banner,
     goal: CustomGoal,
     tables: RandTables,
-    rng: rand::rngs::SmallRng,
+    rng: SmallRng,
     goal_data: GoalData,
 }
 
@@ -56,7 +57,7 @@ impl Sim {
             banner,
             goal: goal.as_custom(&banner),
             tables: RandTables::default(),
-            rng: rand::rngs::SmallRng::from_entropy(),
+            rng: SmallRng::from_entropy(),
             goal_data: GoalData {
                 color_needed: [false; 4],
                 copies_needed: [vec![], vec![], vec![], vec![]],

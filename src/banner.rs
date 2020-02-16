@@ -29,8 +29,8 @@ impl Banner {
 }
 
 /// Section for choosing banner parameters.
-pub fn banner_selector(banner: &Banner) -> El<Msg> {
-    let rate_option = |rates: (u8, u8), label: &str| -> El<Msg> {
+pub fn banner_selector(banner: &Banner) -> Node<Msg> {
+    let rate_option = |rates: (u8, u8), label: &str| -> Node<Msg> {
         let mut attrs = attrs![
             At::Value => format!("{} {}", rates.0, rates.1);
         ];

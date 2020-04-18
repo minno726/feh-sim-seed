@@ -8,6 +8,7 @@ pub struct Banner {
     pub focus_sizes: [i8; 4],
     pub starting_rates: (u8, u8),
     pub new_units: bool,
+    pub fourstar_focus: Option<Color>,
 }
 
 impl Default for Banner {
@@ -16,6 +17,7 @@ impl Default for Banner {
             focus_sizes: [1, 1, 1, 1],
             starting_rates: (3, 3),
             new_units: true,
+            fourstar_focus: None,
         }
     }
 }
@@ -204,6 +206,73 @@ pub fn banner_selector(banner: &Banner) -> Node<Msg> {
                     At::Required => true;
                 ],
             ],
+            if banner.starting_rates == (3, 3) {
+                nodes![
+                    label![
+                        attrs![
+                            At::For => "fourstar_focus";
+                        ],
+                        "4* focus:",
+                    ],
+                    select![
+                        id!["fourstar_focus"],
+                        input_ev("input", |text| {
+                            use Color::*;
+                            let focus = match &*text {
+                                "Red" => Some(Red),
+                                "Blue" => Some(Blue),
+                                "Green" => Some(Green),
+                                "Colorless" => Some(Colorless),
+                                _ => None,
+                            };
+
+                            Msg::BannerFourstarFocusChange { focus }
+                        }),
+                        option![
+                            if banner.fourstar_focus == None {
+                                attrs![At::Selected => "1"]
+                            } else {
+                                attrs![]
+                            },
+                            "None"
+                        ],
+                        option![
+                            if banner.fourstar_focus == Some(Color::Red) {
+                                attrs![At::Selected => "1"]
+                            } else {
+                                attrs![]
+                            },
+                            "Red"
+                        ],
+                        option![
+                            if banner.fourstar_focus == Some(Color::Blue) {
+                                attrs![At::Selected => "1"]
+                            } else {
+                                attrs![]
+                            },
+                            "Blue"
+                        ],
+                        option![
+                            if banner.fourstar_focus == Some(Color::Green) {
+                                attrs![At::Selected => "1"]
+                            } else {
+                                attrs![]
+                            },
+                            "Green"
+                        ],
+                        option![
+                            if banner.fourstar_focus == Some(Color::Colorless) {
+                                attrs![At::Selected => "1"]
+                            } else {
+                                attrs![]
+                            },
+                            "Colorless"
+                        ],
+                    ],
+                ]
+            } else {
+                vec![]
+            }
         ],
     ]
 }

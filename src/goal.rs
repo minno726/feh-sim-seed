@@ -17,28 +17,36 @@ pub enum GoalPreset {
     AllFocus,
     RedFocus,
     AnyRed,
+    RedFourstarFocus,
     BlueFocus,
     AnyBlue,
+    BlueFourstarFocus,
     GreenFocus,
     AnyGreen,
+    GreenFourstarFocus,
     ColorlessFocus,
     AnyColorless,
+    ColorlessFourstarFocus,
 }
 
 impl fmt::Display for GoalPreset {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use crate::goal::GoalPreset::*;
         let s = match *self {
-            AnyFocus => "Any focus unit",
+            AnyFocus => "Any 5* focus unit",
             AllFocus => "All focus units",
-            RedFocus => "Specific red focus unit",
-            AnyRed => "Any red focus unit",
-            BlueFocus => "Specific blue focus unit",
-            AnyBlue => "Any blue focus unit",
-            GreenFocus => "Specific green focus unit",
-            AnyGreen => "Any green focus unit",
-            ColorlessFocus => "Specific colorless focus unit",
-            AnyColorless => "Any colorless focus unit",
+            RedFocus => "Specific red 5* focus unit",
+            RedFourstarFocus => "The red 4* focus unit",
+            AnyRed => "Any red 5* focus unit",
+            BlueFocus => "Specific blue 5* focus unit",
+            BlueFourstarFocus => "The blue 4* focus unit",
+            AnyBlue => "Any blue 5* focus unit",
+            GreenFocus => "Specific green 5* focus unit",
+            GreenFourstarFocus => "The green 4* focus unit",
+            AnyGreen => "Any green 5* focus unit",
+            ColorlessFocus => "Specific colorless 5* focus unit",
+            AnyColorless => "Any colorless 5* focus unit",
+            ColorlessFourstarFocus => "The colorless 4* focus unit",
         };
         f.write_str(s)
     }
@@ -61,24 +69,41 @@ impl GoalPreset {
     /// Determines whether or not the selected preset is a goal that it is
     /// possible to achieve on the banner.
     pub fn is_available(self, banner: &Banner) -> bool {
-        use crate::goal::GoalPreset::*;
+        use GoalPreset::*;
         match self {
             AnyFocus | AllFocus => banner.focus_sizes.iter().any(|&x| x > 0),
             RedFocus | AnyRed => banner.focus_sizes[0] > 0,
             BlueFocus | AnyBlue => banner.focus_sizes[1] > 0,
             GreenFocus | AnyGreen => banner.focus_sizes[2] > 0,
             ColorlessFocus | AnyColorless => banner.focus_sizes[3] > 0,
+            RedFourstarFocus => {
+                banner.fourstar_focus == Some(Color::Red) && banner.focus_sizes[0] > 0
+            }
+            BlueFourstarFocus => {
+                banner.fourstar_focus == Some(Color::Blue) && banner.focus_sizes[1] > 0
+            }
+            GreenFourstarFocus => {
+                banner.fourstar_focus == Some(Color::Green) && banner.focus_sizes[2] > 0
+            }
+            ColorlessFourstarFocus => {
+                banner.fourstar_focus == Some(Color::Colorless) && banner.focus_sizes[3] > 0
+            }
         }
     }
 
     /// Says whether or not the preset has only a single unit that counts for
     /// completing the goal.
     fn is_single_target(&self) -> bool {
+        use GoalPreset::*;
         match self {
-            GoalPreset::RedFocus
-            | GoalPreset::BlueFocus
-            | GoalPreset::GreenFocus
-            | GoalPreset::ColorlessFocus => true,
+            RedFocus
+            | BlueFocus
+            | GreenFocus
+            | ColorlessFocus
+            | RedFourstarFocus
+            | BlueFourstarFocus
+            | GreenFourstarFocus
+            | ColorlessFourstarFocus => true,
             _ => false,
         }
     }
@@ -96,6 +121,7 @@ pub enum GoalKind {
 pub struct GoalPart {
     pub unit_color: Color,
     pub num_copies: u8,
+    pub four_star: bool,
 }
 
 /// The flexible representation of a goal
@@ -147,10 +173,11 @@ impl Goal {
             goals: vec![],
         };
 
-        let mut add_color_goal = |color: Color| {
+        let mut add_color_goal = |color: Color, four_star: bool| {
             custom_goal.goals.push(GoalPart {
                 unit_color: color,
                 num_copies: count,
+                four_star,
             });
         };
         // Add an individual GoalPart for each focus unit that matches the
@@ -159,34 +186,38 @@ impl Goal {
             AllFocus | AnyFocus => {
                 for idx in 0..banner.focus_sizes.len() {
                     for _ in 0..banner.focus_sizes[idx] {
-                        add_color_goal(Color::try_from(idx as u8).unwrap());
+                        add_color_goal(Color::try_from(idx as u8).unwrap(), false);
                     }
                 }
             }
-            RedFocus => add_color_goal(Red),
-            BlueFocus => add_color_goal(Blue),
-            GreenFocus => add_color_goal(Green),
-            ColorlessFocus => add_color_goal(Colorless),
+            RedFocus => add_color_goal(Red, false),
+            BlueFocus => add_color_goal(Blue, false),
+            GreenFocus => add_color_goal(Green, false),
+            ColorlessFocus => add_color_goal(Colorless, false),
             AnyRed => {
                 for _ in 0..banner.focus_sizes[0] {
-                    add_color_goal(Red)
+                    add_color_goal(Red, false)
                 }
             }
             AnyBlue => {
                 for _ in 0..banner.focus_sizes[1] {
-                    add_color_goal(Blue)
+                    add_color_goal(Blue, false)
                 }
             }
             AnyGreen => {
                 for _ in 0..banner.focus_sizes[2] {
-                    add_color_goal(Green)
+                    add_color_goal(Green, false)
                 }
             }
             AnyColorless => {
                 for _ in 0..banner.focus_sizes[3] {
-                    add_color_goal(Colorless)
+                    add_color_goal(Colorless, false)
                 }
             }
+            RedFourstarFocus => add_color_goal(Red, true),
+            BlueFourstarFocus => add_color_goal(Blue, true),
+            GreenFourstarFocus => add_color_goal(Green, true),
+            ColorlessFourstarFocus => add_color_goal(Colorless, true),
         }
 
         custom_goal

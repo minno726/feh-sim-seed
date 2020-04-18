@@ -5,7 +5,7 @@ use rand::distributions::Distribution;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 
-use weighted_choice::WeightedIndex4;
+use weighted_choice::{WeightedIndex4, WeightedIndex5};
 
 use goal::{CustomGoal, GoalKind};
 
@@ -30,14 +30,15 @@ pub struct Sim {
 /// Precalculated tables for the probabilities of units being randomly chosen.
 #[derive(Debug, Copy, Clone, Default)]
 struct RandTables {
-    pool_sizes: [[u8; 4]; 4],
-    pool_dists: [WeightedIndex4; 26],
-    color_dists: [WeightedIndex4; 4],
+    pool_sizes: [[u8; 4]; 5],
+    pool_dists: [WeightedIndex5; 26],
+    color_dists: [WeightedIndex4; 5],
 }
 
 /// Scratch space for representing the goal in a way that is faster to work with.
 #[derive(Debug, Clone)]
 struct GoalData {
+    pub is_fourstar_focus: bool,
     pub color_needed: [bool; 4],
     pub copies_needed: [Vec<u8>; 4],
 }
@@ -59,6 +60,7 @@ impl Sim {
             tables: RandTables::default(),
             rng: SmallRng::from_entropy(),
             goal_data: GoalData {
+                is_fourstar_focus: banner.fourstar_focus.is_some(),
                 color_needed: [false; 4],
                 copies_needed: [vec![], vec![], vec![], vec![]],
             },
@@ -72,36 +74,44 @@ impl Sim {
         self.tables.pool_sizes = [
             [0, 0, 0, 0],
             if self.banner.new_units {
-                [30, 24, 24, 19]
+                [36, 26, 25, 18]
             } else {
-                [50, 35, 32, 27]
+                [56, 37, 33, 26]
             },
-            [33, 32, 23, 34],
-            [33, 30, 20, 30],
+            [0, 0, 0, 0],
+            [33, 34, 24, 34],
+            [33, 33, 24, 34],
         ];
         for i in 0..4 {
             self.tables.pool_sizes[0][i] = self.banner.focus_sizes[i].max(0) as u8;
         }
+        if let Some(color) = self.banner.fourstar_focus {
+            self.tables.pool_sizes[2][color as usize] = 1;
+        }
 
-        for color in 0..4 {
+        for color in 0..5 {
             self.tables.color_dists[color] = WeightedIndex4::new(self.tables.pool_sizes[color]);
         }
 
         for pity_incr in 0..26 {
             self.tables.pool_dists[pity_incr] =
-                WeightedIndex4::new(self.probabilities(pity_incr as u32));
+                WeightedIndex5::new(self.probabilities(pity_incr as u32));
         }
     }
 
     // Initializes the internal representation of a goal.
     fn init_goal_data(&mut self) {
         self.goal_data.color_needed = [false, false, false, false];
+        self.goal_data.is_fourstar_focus = false;
         for i in 0..4 {
             self.goal_data.copies_needed[i].clear();
         }
         for &goal in &self.goal.goals {
             self.goal_data.copies_needed[goal.unit_color as usize].push(goal.num_copies);
             self.goal_data.color_needed[goal.unit_color as usize] = true;
+            if goal.four_star {
+                self.goal_data.is_fourstar_focus = true;
+            }
         }
     }
 
@@ -173,11 +183,20 @@ impl Sim {
     fn pull_orb(&mut self, sample: (Pool, Color)) -> bool {
         let color = sample.1;
         let do_reset = sample.0 == Pool::Focus || sample.0 == Pool::Fivestar;
-        if sample.0 != Pool::Focus || !self.goal_data.color_needed[color as usize] {
+        if sample.0 == Pool::Threestar
+            || sample.0 == Pool::Fourstar
+            || sample.0 == Pool::Fivestar
+            || (sample.0 == Pool::FourstarFocus && !self.goal_data.is_fourstar_focus)
+            || !self.goal_data.color_needed[color as usize]
+        {
             return do_reset;
         }
         let focus_count = self.banner.focus_sizes[color as usize];
-        let which_unit = self.rng.gen::<usize>() % focus_count as usize;
+        let which_unit = if sample.0 == Pool::FourstarFocus {
+            0
+        } else {
+            self.rng.gen::<usize>() % focus_count as usize
+        };
         if which_unit < self.goal_data.copies_needed[color as usize].len() {
             if self.goal_data.copies_needed[color as usize][which_unit] > 1 {
                 self.goal_data.copies_needed[color as usize][which_unit] -= 1;
@@ -218,7 +237,7 @@ impl Sim {
 
     /// Calculates the actual probabilities of selecting a unit from each of the four
     /// possible pools after a certain number of rate increases.
-    fn probabilities(&self, pity_incr: u32) -> [f32; 4] {
+    fn probabilities(&self, pity_incr: u32) -> [f32; 5] {
         let bases = self.bases();
         let pity_pct = if pity_incr >= 25 {
             100.0 - bases[Pool::Focus as usize] - bases[1]
@@ -240,19 +259,21 @@ impl Sim {
     }
 
     /// Gives the base probabilities of selecting a unit from each pool.
-    fn bases(&self) -> [f32; 4] {
+    fn bases(&self) -> [f32; 5] {
         let (focus, fivestar) = self.banner.starting_rates;
-        if (focus, fivestar) == (6, 0) {
+        if self.banner.fourstar_focus.is_some() {
+            [3.0, 3.0, 3.0, 55.0, 36.0]
+        } else if (focus, fivestar) == (6, 0) {
             // The lower-rarity breakdown on this new banner is different
             // for no apparent reason
-            [6.0, 0.0, 60.0, 34.0]
+            [6.0, 0.0, 0.0, 60.0, 34.0]
         } else {
             let focus = focus as f32;
             let fivestar = fivestar as f32;
             let fivestar_total = focus + fivestar;
             let fourstar = (100.0 - fivestar_total) * 58.0 / 94.0;
             let threestar = (100.0 - fivestar_total) * 36.0 / 94.0;
-            [focus, fivestar, fourstar, threestar]
+            [focus, fivestar, 0.0, fourstar, threestar]
         }
     }
 }

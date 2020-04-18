@@ -1,3 +1,7 @@
+#### v0.2.0 - 18 Apr 2020
+
+* Add support for banners with a 4* focus.
+
 #### v0.1.1 - 10 Dec 2019
 
 * Add new "double special heroes" banner type.

@@ -68,6 +68,7 @@ impl TryFrom<u8> for Color {
 pub enum Pool {
     Focus,
     Fivestar,
+    FourstarFocus,
     Fourstar,
     Threestar,
 }
@@ -80,8 +81,9 @@ impl TryFrom<u8> for Pool {
         Ok(match value {
             0 => Focus,
             1 => Fivestar,
-            2 => Fourstar,
-            3 => Threestar,
+            2 => FourstarFocus,
+            3 => Fourstar,
+            4 => Threestar,
             _ => return Err(()),
         })
     }
@@ -126,10 +128,14 @@ pub enum Msg {
     Null,
     /// Holds a collection of messages that will all be queued up at once.
     Multiple(Vec<Msg>),
+    /// Display an alert
+    Alert { message: String },
     /// Gather data.
     Run,
     /// Change the number of focus units for a given color.
     BannerFocusSizeChange { color: Color, quantity: i8 },
+    /// Change the 4* focus setting
+    BannerFourstarFocusChange { focus: Option<Color> },
     /// Change the starting rates.
     BannerRateChange { rates: (u8, u8) },
     /// Change whether the banner uses the old or new 5* pools.
@@ -162,7 +168,6 @@ pub enum Msg {
 
 /// Update model with the given message.
 fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
-    log!(msg);
     match msg {
         Msg::Null => {
             orders.skip();
@@ -173,6 +178,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 orders.send_msg(msg);
             }
         }
+        Msg::Alert { message } => alert(&message),
         Msg::BannerFocusSizeChange { color, quantity } => {
             model.banner.focus_sizes[color as usize] = quantity;
             model.data.clear();
@@ -188,6 +194,10 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 // Another special kind of banner
                 model.banner.focus_sizes = [2, 2, 2, 2];
             }
+        }
+        Msg::BannerFourstarFocusChange { focus } => {
+            model.banner.fourstar_focus = focus;
+            model.data.clear();
         }
         Msg::BannerFocusTypeToggle => {
             model.banner.new_units = !model.banner.new_units;
@@ -244,7 +254,12 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             }
         }
         Msg::GoalMakeCustom => {
-            model.goal = Goal::Custom(model.goal.as_custom(&model.banner));
+            let mut custom = model.goal.as_custom(&model.banner);
+            // 4* focuses in custom goals are not supported
+            for part in &mut custom.goals {
+                part.four_star = false;
+            }
+            model.goal = Goal::Custom(custom);
             model.data.clear();
         }
         Msg::GoalPartQuantityChange { index, quantity } => {
@@ -262,6 +277,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
                 custom_goal.goals.push(GoalPart {
                     unit_color: color,
                     num_copies: quantity,
+                    four_star: false,
                 });
                 model.data.clear();
             }
@@ -281,7 +297,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::Permalink => {
             let url = seed::Url::new(vec!["fehstatsim/"]).search(&format!(
-                "banner={}&goal={}&run=1",
+                "v=2&banner={}&goal={}&run=1",
                 base64::encode(&bincode::serialize(&model.banner).unwrap()),
                 base64::encode(&bincode::serialize(&model.goal).unwrap())
             ));
@@ -309,12 +325,12 @@ fn main_page(model: &Model) -> Vec<Node<Msg>> {
     vec![
         header![
             a![
-                "Help",
+                "How to use",
                 attrs! [
                     At::Href => "/fehstatsim/help";
                 ],
             ],
-            " | v0.1.0 ",
+            " | v0.2.0 ",
             a![
                 "Changelog",
                 attrs![
@@ -410,23 +426,48 @@ fn routes(url: seed::Url) -> Option<Msg> {
         _ => Msg::PageChange(Page::Main),
     });
 
-    if let Some(banner) = query_string::get(&url, "banner").and_then(Banner::from_query_string) {
-        messages.push(Msg::BannerSet { banner });
+    let mut invalid_query_string = false;
+
+    if let Some(banner) = query_string::get(&url, "banner") {
+        if let Some(banner) = Banner::from_query_string(banner) {
+            messages.push(Msg::BannerSet { banner });
+        } else {
+            invalid_query_string = true;
+        }
     }
 
-    if let Some(goal) = query_string::get(&url, "goal").and_then(Goal::from_query_string) {
-        messages.push(Msg::GoalSet { goal });
+    if let Some(goal) = query_string::get(&url, "goal") {
+        if let Some(goal) = Goal::from_query_string(goal) {
+            messages.push(Msg::GoalSet { goal });
+        } else {
+            invalid_query_string = true;
+        }
     }
 
     if let Some("1") = query_string::get(&url, "run") {
         messages.push(Msg::Run);
     }
 
-    if messages.is_empty() {
+    if invalid_query_string {
+        if query_string::get(&url, "v") != Some("2") {
+            Some(Msg::Alert {
+                message: "The permalink format has changed, please update your link.".into(),
+            })
+        } else {
+            Some(Msg::Alert {
+                message: "Invalid permalink".into(),
+            })
+        }
+    } else if messages.is_empty() {
         None
     } else {
         Some(Msg::Multiple(messages))
     }
+}
+
+#[wasm_bindgen]
+extern "C" {
+    fn alert(text: &str);
 }
 
 #[wasm_bindgen]

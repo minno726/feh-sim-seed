@@ -15,6 +15,7 @@ struct SessionResult {
     reset: bool,
     got_focus: bool,
     got_nonfocus: u32,
+    pity_decr: u32,
 }
 
 struct PullOrbResult {
@@ -138,9 +139,16 @@ impl Sim {
                 reset,
                 got_focus,
                 got_nonfocus,
+                pity_decr,
             } = self.session_select(&samples);
             if reset {
                 pity_count = 0;
+            } else if pity_decr > 0 {
+                if pity_count + chosen_count < 20 * pity_decr {
+                    pity_count = 0;
+                } else {
+                    pity_count += chosen_count - 20 * pity_decr;
+                }
             } else {
                 pity_count += chosen_count;
             }
@@ -169,13 +177,15 @@ impl Sim {
             reset: false,
             got_focus: false,
             got_nonfocus: 0,
+            pity_decr: 0,
         };
         for i in 0..5 {
             let sample = samples[i];
             if self.may_match_goal(sample.1) {
                 result.chosen_count += 1;
                 let pull_result = self.pull_orb(sample);
-                result.reset |= pull_result.got_focus || pull_result.got_non_focus;
+                result.reset |= pull_result.got_focus;
+                result.pity_decr += if pull_result.got_non_focus { 1 } else { 0 };
                 result.got_focus |= pull_result.got_focus;
                 result.got_nonfocus += if pull_result.got_non_focus { 1 } else { 0 };
                 if self.goal_data.is_met() {
@@ -187,7 +197,8 @@ impl Sim {
             // None with the color we want, so pick randomly
             let sample = samples[self.rng.gen::<usize>() % samples.len()];
             let pull_result = self.pull_orb(sample);
-            result.reset |= pull_result.got_focus || pull_result.got_non_focus;
+            result.reset |= pull_result.got_focus;
+            result.pity_decr += if pull_result.got_non_focus { 1 } else { 0 };
             result.got_focus |= pull_result.got_focus;
             result.got_nonfocus += if pull_result.got_non_focus { 1 } else { 0 };
             result.chosen_count = 1;

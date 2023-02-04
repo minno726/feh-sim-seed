@@ -338,6 +338,13 @@ fn main_page(model: &Model) -> Vec<Node<Msg>> {
                     At::Href => "/fehstatsim/changelog";
                 ],
             ],
+            " | ",
+            a![
+                "Contact",
+                attrs![
+                    At::Href => "https://www.reddit.com/message/compose?to=minno&subject=fehstatsim%20site%20help";
+                ]
+            ]
         ],
         div![
             class!["no-select"],

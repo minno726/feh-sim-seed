@@ -31,7 +31,7 @@ args = ["build", "--target", "no-modules", "--out-dir", "pkg"]
 [tasks.opt_wasm]
 description = "Optimize with wasm-opt"
 command = "../binaryen/bin/wasm-opt"
-args = ["pkg/feh_sim_seed_bg.wasm", "-o", "pkg/feh_sim_seed_bg.wasm"]
+args = ["pkg/feh_sim_seed_bg.wasm", "-o", "pkg/feh_sim_seed_bg.wasm", "-Os"]
 
 [tasks.all]
 description = "Build, and create wasms"

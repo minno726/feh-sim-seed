@@ -7,7 +7,7 @@ use crate::{Color, Msg};
 pub struct Banner {
     pub focus_sizes: [i8; 4],
     pub starting_rates: (u8, u8),
-    pub new_units: bool,
+    pub focus_charges: bool,
     pub fourstar_focus: Option<Color>,
 }
 
@@ -16,7 +16,7 @@ impl Default for Banner {
         Banner {
             focus_sizes: [1, 1, 1, 1],
             starting_rates: (3, 3),
-            new_units: true,
+            focus_charges: true,
             fourstar_focus: None,
         }
     }
@@ -66,11 +66,11 @@ pub fn banner_selector(banner: &Banner) -> Node<Msg> {
                 rate_option((6, 0), "6%/0% (Double Special Heroes)"),
             ],
             input![
-                id!["new_unit_banner"],
-                simple_ev(Ev::Input, Msg::BannerFocusTypeToggle),
-                attrs![At::Type => "checkbox"; At::Checked => banner.new_units.to_string()],
+                id!["focus_charges_banner"],
+                simple_ev(Ev::Input, Msg::BannerFocusChargesToggle),
+                attrs![At::Type => "checkbox"; At::Checked => banner.focus_charges.as_at_value()],
             ],
-            label![attrs![At::For => "new_unit_banner"], "New units?"]
+            label![attrs![At::For => "focus_charges_banner"], "Focus charges?"]
         ],
         div![
             id!["focus_counts"],

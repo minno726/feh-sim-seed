@@ -138,8 +138,8 @@ pub enum Msg {
     BannerFourstarFocusChange { focus: Option<Color> },
     /// Change the starting rates.
     BannerRateChange { rates: (u8, u8) },
-    /// Change whether the banner uses the old or new 5* pools.
-    BannerFocusTypeToggle,
+    /// Change whether the banner uses focus charges.
+    BannerFocusChargesToggle,
     /// Replace the banner with a new one.
     BannerSet { banner: Banner },
     /// Set the goal to a certain preset.
@@ -199,8 +199,8 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.banner.fourstar_focus = focus;
             model.data.clear();
         }
-        Msg::BannerFocusTypeToggle => {
-            model.banner.new_units = !model.banner.new_units;
+        Msg::BannerFocusChargesToggle => {
+            model.banner.focus_charges = !model.banner.focus_charges;
             model.data.clear();
         }
         Msg::BannerSet { banner } => {
@@ -297,7 +297,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
         }
         Msg::Permalink => {
             let url = seed::Url::new(vec!["fehstatsim/"]).search(&format!(
-                "v=2&banner={}&goal={}&run=1",
+                "v=3&banner={}&goal={}&run=1",
                 base64::encode(&bincode::serialize(&model.banner).unwrap()),
                 base64::encode(&bincode::serialize(&model.goal).unwrap())
             ));
@@ -324,13 +324,14 @@ fn view(model: &Model) -> Vec<Node<Msg>> {
 fn main_page(model: &Model) -> Vec<Node<Msg>> {
     vec![
         header![
+            class!["no-select"],
             a![
                 "How to use",
                 attrs! [
                     At::Href => "/fehstatsim/help";
                 ],
             ],
-            " | v0.2.0 ",
+            " | v0.3.0 ",
             a![
                 "Changelog",
                 attrs![
@@ -339,6 +340,7 @@ fn main_page(model: &Model) -> Vec<Node<Msg>> {
             ],
         ],
         div![
+            class!["no-select"],
             id!["content"],
             goal::goal_selector(&model.goal, &model.banner),
             banner::banner_selector(&model.banner),
@@ -448,16 +450,14 @@ fn routes(url: seed::Url) -> Option<Msg> {
         messages.push(Msg::Run);
     }
 
-    if invalid_query_string {
-        if query_string::get(&url, "v") != Some("2") {
-            Some(Msg::Alert {
-                message: "The permalink format has changed, please update your link.".into(),
-            })
-        } else {
-            Some(Msg::Alert {
-                message: "Invalid permalink".into(),
-            })
-        }
+    if query_string::get(&url, "v").is_some() && query_string::get(&url, "v") != Some("3") {
+        Some(Msg::Alert {
+            message: "The permalink format has changed, please update your link.".into(),
+        })
+    } else if invalid_query_string {
+        Some(Msg::Alert {
+            message: "Invalid permalink".into(),
+        })
     } else if messages.is_empty() {
         None
     } else {

@@ -9,9 +9,5 @@ mod svg_graph;
 /// on the graph at the specified point. Otherwise, labels are placed at pre-set
 /// locations.
 pub fn results(data: &Counter, highlight: Option<f32>) -> Node<Msg> {
-    div![
-        id!["results"],
-        class!["no-select"],
-        svg_graph::graph(data, highlight),
-    ]
+    div![id!["results"], svg_graph::graph(data, highlight),]
 }

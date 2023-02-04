@@ -13,6 +13,13 @@ use goal::{CustomGoal, GoalKind};
 struct SessionResult {
     chosen_count: u32,
     reset: bool,
+    got_focus: bool,
+    got_nonfocus: u32,
+}
+
+struct PullOrbResult {
+    got_non_focus: bool,
+    got_focus: bool,
 }
 
 /// A structure holding the information for a sequence of summoning
@@ -73,14 +80,10 @@ impl Sim {
     fn init_probability_tables(&mut self) {
         self.tables.pool_sizes = [
             [0, 0, 0, 0],
-            if self.banner.new_units {
-                [36, 26, 25, 18]
-            } else {
-                [56, 37, 33, 26]
-            },
+            [29, 29, 20, 16],
             [0, 0, 0, 0],
-            [33, 34, 24, 34],
-            [33, 33, 24, 34],
+            [41, 44, 35, 44],
+            [41, 44, 35, 44],
         ];
         for i in 0..4 {
             self.tables.pool_sizes[0][i] = self.banner.focus_sizes[i].max(0) as u8;
@@ -119,24 +122,36 @@ impl Sim {
     pub fn roll_until_goal(&mut self) -> u32 {
         let mut pity_count = 0;
         let mut orb_count = 0;
+        let mut focus_charges = 0;
         self.init_goal_data();
         loop {
             let pity_incr = pity_count / 5;
             let samples = [
-                self.sample(pity_incr),
-                self.sample(pity_incr),
-                self.sample(pity_incr),
-                self.sample(pity_incr),
-                self.sample(pity_incr),
+                self.sample(pity_incr, focus_charges == 3),
+                self.sample(pity_incr, focus_charges == 3),
+                self.sample(pity_incr, focus_charges == 3),
+                self.sample(pity_incr, focus_charges == 3),
+                self.sample(pity_incr, focus_charges == 3),
             ];
             let SessionResult {
                 chosen_count,
                 reset,
+                got_focus,
+                got_nonfocus,
             } = self.session_select(&samples);
             if reset {
                 pity_count = 0;
             } else {
                 pity_count += chosen_count;
+            }
+            if got_focus && focus_charges == 3 {
+                focus_charges = 0;
+            }
+            if self.banner.focus_charges {
+                focus_charges = (focus_charges + got_nonfocus).min(3);
+                if got_focus {
+                    focus_charges = 0;
+                }
             }
             orb_count += Sim::orb_cost(chosen_count);
             if self.goal_data.is_met() {
@@ -152,12 +167,17 @@ impl Sim {
         let mut result = SessionResult {
             chosen_count: 0,
             reset: false,
+            got_focus: false,
+            got_nonfocus: 0,
         };
         for i in 0..5 {
             let sample = samples[i];
             if self.may_match_goal(sample.1) {
                 result.chosen_count += 1;
-                result.reset |= self.pull_orb(sample);
+                let pull_result = self.pull_orb(sample);
+                result.reset |= pull_result.got_focus || pull_result.got_non_focus;
+                result.got_focus |= pull_result.got_focus;
+                result.got_nonfocus += if pull_result.got_non_focus { 1 } else { 0 };
                 if self.goal_data.is_met() {
                     return result;
                 }
@@ -166,7 +186,10 @@ impl Sim {
         if result.chosen_count == 0 {
             // None with the color we want, so pick randomly
             let sample = samples[self.rng.gen::<usize>() % samples.len()];
-            result.reset |= self.pull_orb(sample);
+            let pull_result = self.pull_orb(sample);
+            result.reset |= pull_result.got_focus || pull_result.got_non_focus;
+            result.got_focus |= pull_result.got_focus;
+            result.got_nonfocus += if pull_result.got_non_focus { 1 } else { 0 };
             result.chosen_count = 1;
         }
         result
@@ -180,16 +203,18 @@ impl Sim {
 
     /// Evaluates the result of selecting the given sample. Returns `true` if the
     /// sample made the rate increase reset.
-    fn pull_orb(&mut self, sample: (Pool, Color)) -> bool {
+    fn pull_orb(&mut self, sample: (Pool, Color)) -> PullOrbResult {
         let color = sample.1;
-        let do_reset = sample.0 == Pool::Focus || sample.0 == Pool::Fivestar;
         if sample.0 == Pool::Threestar
             || sample.0 == Pool::Fourstar
             || sample.0 == Pool::Fivestar
             || (sample.0 == Pool::FourstarFocus && !self.goal_data.is_fourstar_focus)
             || !self.goal_data.color_needed[color as usize]
         {
-            return do_reset;
+            return PullOrbResult {
+                got_focus: sample.0 == Pool::Focus,
+                got_non_focus: sample.0 == Pool::Fivestar,
+            };
         }
         let focus_count = self.banner.focus_sizes[color as usize];
         let which_unit = if sample.0 == Pool::FourstarFocus {
@@ -209,7 +234,10 @@ impl Sim {
                 }
             }
         }
-        return do_reset;
+        return PullOrbResult {
+            got_focus: sample.0 == Pool::Focus,
+            got_non_focus: sample.0 == Pool::Fivestar,
+        };
     }
 
     /// The total orb cost of choosing the given number of units from a session.
@@ -226,13 +254,16 @@ impl Sim {
 
     /// Chooses a weighted random unit from the summoning pool. `pity_incr` is the
     /// number of times that the 5* rates have increased by 0.5% total.
-    fn sample(&mut self, pity_incr: u32) -> (Pool, Color) {
+    fn sample(&mut self, pity_incr: u32, focus_charge_active: bool) -> (Pool, Color) {
         let pool = self.tables.pool_dists[pity_incr as usize].sample(&mut self.rng) as u8;
+        let mut pool = Pool::try_from(pool).unwrap();
+        if focus_charge_active && pool == Pool::Fivestar {
+            pool = Pool::Focus;
+        }
+
         let color = self.tables.color_dists[pool as usize].sample(&mut self.rng) as u8;
-        (
-            Pool::try_from(pool).unwrap(),
-            Color::try_from(color).unwrap(),
-        )
+        let color = Color::try_from(color).unwrap();
+        (pool, color)
     }
 
     /// Calculates the actual probabilities of selecting a unit from each of the four

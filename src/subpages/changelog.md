@@ -1,3 +1,9 @@
+#### v0.3.0 - 3 Feb 2023
+
+* Add support for focus charges.
+
+* Update summoning pool sizes.
+
 #### v0.2.0 - 18 Apr 2020
 
 * Add support for banners with a 4\* focus.

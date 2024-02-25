@@ -81,10 +81,10 @@ impl Sim {
     fn init_probability_tables(&mut self) {
         self.tables.pool_sizes = [
             [0, 0, 0, 0],
-            [29, 29, 20, 16],
+            [26, 19, 14, 17],
             [0, 0, 0, 0],
-            [41, 44, 35, 44],
-            [41, 44, 35, 44],
+            [45, 46, 37, 50],
+            [45, 46, 37, 50],
         ];
         for i in 0..4 {
             self.tables.pool_sizes[0][i] = self.banner.focus_sizes[i].max(0) as u8;

@@ -331,7 +331,7 @@ fn main_page(model: &Model) -> Vec<Node<Msg>> {
                     At::Href => "/fehstatsim/help";
                 ],
             ],
-            " | v0.3.0 ",
+            " | v0.3.1 ",
             a![
                 "Changelog",
                 attrs![

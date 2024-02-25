@@ -1,3 +1,9 @@
+#### v0.3.1 - 24 Feb 2024
+
+* Add support for partial pity rate resets (thanks, DTM9025)
+
+* Update summoning pool sizes.
+
 #### v0.3.0 - 3 Feb 2023
 
 * Add support for focus charges.

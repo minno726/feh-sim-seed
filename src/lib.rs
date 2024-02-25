@@ -69,6 +69,7 @@ pub enum Pool {
     Focus,
     Fivestar,
     FourstarFocus,
+    FourstarSpecial,
     Fourstar,
     Threestar,
 }
@@ -82,8 +83,9 @@ impl TryFrom<u8> for Pool {
             0 => Focus,
             1 => Fivestar,
             2 => FourstarFocus,
-            3 => Fourstar,
-            4 => Threestar,
+            3 => FourstarSpecial,
+            4 => Fourstar,
+            5 => Threestar,
             _ => return Err(()),
         })
     }

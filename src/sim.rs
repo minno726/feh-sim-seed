@@ -94,8 +94,8 @@ impl Sim {
             self.tables.pool_sizes[2][color as usize] = 1;
         }
 
-        for color in 0..6 {
-            self.tables.color_dists[color] = WeightedIndex4::new(self.tables.pool_sizes[color]);
+        for pool in 0..6 {
+            self.tables.color_dists[pool] = WeightedIndex4::new(self.tables.pool_sizes[pool]);
         }
 
         for pity_incr in 0..26 {
@@ -297,10 +297,10 @@ impl Sim {
 
         let lower_dem = bases[Pool::FourstarFocus as usize] + bases[Pool::FourstarSpecial as usize]
                         + bases[Pool::Fourstar as usize] + bases[Pool::Threestar as usize];
-        probabilities[Pool::FourstarFocus as usize] -= pity_pct * bases[Pool::FourstarFocus as usize] / lower_dem / 100.0;
-        probabilities[Pool::FourstarSpecial as usize] -= pity_pct * bases[Pool::FourstarSpecial as usize] / lower_dem / 100.0;
-        probabilities[Pool::Fourstar as usize] -= pity_pct * bases[Pool::Fourstar as usize] / lower_dem / 100.0;
-        probabilities[Pool::Threestar as usize] -= pity_pct * bases[Pool::Threestar as usize] / lower_dem / 100.0;
+        probabilities[Pool::FourstarFocus as usize] -= pity_pct * bases[Pool::FourstarFocus as usize] / lower_dem;
+        probabilities[Pool::FourstarSpecial as usize] -= pity_pct * bases[Pool::FourstarSpecial as usize] / lower_dem;
+        probabilities[Pool::Fourstar as usize] -= pity_pct * bases[Pool::Fourstar as usize] / lower_dem;
+        probabilities[Pool::Threestar as usize] -= pity_pct * bases[Pool::Threestar as usize] / lower_dem;
         probabilities
     }
 

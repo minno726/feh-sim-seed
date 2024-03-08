@@ -12,10 +12,8 @@ use goal::{CustomGoal, GoalKind};
 /// The results of a pull session.
 struct SessionResult {
     chosen_count: u32,
-    reset: bool,
     got_focus: bool,
-    got_nonfocus: u32,
-    pity_decr: u32,
+    nonfocus_count: u32,
 }
 
 struct PullOrbResult {
@@ -136,27 +134,20 @@ impl Sim {
             ];
             let SessionResult {
                 chosen_count,
-                reset,
                 got_focus,
-                got_nonfocus,
-                pity_decr,
+                nonfocus_count,
             } = self.session_select(&samples);
-            if reset {
+            pity_count += chosen_count;
+            if got_focus {
                 pity_count = 0;
-            } else if pity_decr > 0 {
-                if pity_count + chosen_count < 20 * pity_decr {
-                    pity_count = 0;
-                } else {
-                    pity_count += chosen_count - 20 * pity_decr;
-                }
             } else {
-                pity_count += chosen_count;
+                pity_count = pity_count.saturating_sub(20 * nonfocus_count);
             }
             if got_focus && focus_charges == 3 {
                 focus_charges = 0;
             }
             if self.banner.focus_charges {
-                focus_charges = (focus_charges + got_nonfocus).min(3);
+                focus_charges = (focus_charges + nonfocus_count).min(3);
                 if got_focus {
                     focus_charges = 0;
                 }
@@ -174,34 +165,20 @@ impl Sim {
     fn session_select(&mut self, samples: &[(Pool, Color); 5]) -> SessionResult {
         let mut result = SessionResult {
             chosen_count: 0,
-            reset: false,
             got_focus: false,
-            got_nonfocus: 0,
-            pity_decr: 0,
+            nonfocus_count: 0,
         };
         for i in 0..5 {
             let sample = samples[i];
-            if self.may_match_goal(sample.1) {
+            if self.may_match_goal(sample.1) || (i == 4 && result.chosen_count == 0) {
                 result.chosen_count += 1;
                 let pull_result = self.pull_orb(sample);
-                result.reset |= pull_result.got_focus;
-                result.pity_decr += if pull_result.got_non_focus { 1 } else { 0 };
                 result.got_focus |= pull_result.got_focus;
-                result.got_nonfocus += if pull_result.got_non_focus { 1 } else { 0 };
+                result.nonfocus_count += if pull_result.got_non_focus { 1 } else { 0 };
                 if self.goal_data.is_met() {
                     return result;
                 }
             }
-        }
-        if result.chosen_count == 0 {
-            // None with the color we want, so pick randomly
-            let sample = samples[self.rng.gen::<usize>() % samples.len()];
-            let pull_result = self.pull_orb(sample);
-            result.reset |= pull_result.got_focus;
-            result.pity_decr += if pull_result.got_non_focus { 1 } else { 0 };
-            result.got_focus |= pull_result.got_focus;
-            result.got_nonfocus += if pull_result.got_non_focus { 1 } else { 0 };
-            result.chosen_count = 1;
         }
         result
     }
@@ -212,8 +189,7 @@ impl Sim {
         self.goal_data.color_needed[color as usize]
     }
 
-    /// Evaluates the result of selecting the given sample. Returns `true` if the
-    /// sample made the rate increase reset.
+    /// Evaluates the result of selecting the given sample.
     fn pull_orb(&mut self, sample: (Pool, Color)) -> PullOrbResult {
         let color = sample.1;
         if sample.0 == Pool::Threestar
@@ -245,10 +221,10 @@ impl Sim {
                 }
             }
         }
-        return PullOrbResult {
+        PullOrbResult {
             got_focus: sample.0 == Pool::Focus,
             got_non_focus: sample.0 == Pool::Fivestar,
-        };
+        }
     }
 
     /// The total orb cost of choosing the given number of units from a session.

@@ -296,7 +296,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.curr_page = page;
         }
         Msg::Permalink => {
-            let url = seed::Url::new(vec!["fehstatsim/"]).search(&format!(
+            let url = seed::Url::new(vec!["/"]).search(&format!(
                 "v=3&banner={}&goal={}&run=1",
                 base64::encode(&bincode::serialize(&model.banner).unwrap()),
                 base64::encode(&bincode::serialize(&model.goal).unwrap())
@@ -328,14 +328,14 @@ fn main_page(model: &Model) -> Vec<Node<Msg>> {
             a![
                 "How to use",
                 attrs! [
-                    At::Href => "/fehstatsim/help";
+                    At::Href => "/help";
                 ],
             ],
             " | v0.3.1 ",
             a![
                 "Changelog",
                 attrs![
-                    At::Href => "/fehstatsim/changelog";
+                    At::Href => "/changelog";
                 ],
             ],
             " | ",
@@ -429,7 +429,7 @@ fn permalink() -> Node<Msg> {
 fn routes(url: seed::Url) -> Option<Msg> {
     let mut messages = vec![];
 
-    messages.push(match url.path.get(1).map(String::as_str) {
+    messages.push(match url.path.get(0).map(String::as_str) {
         Some("help") => Msg::PageChange(Page::Help),
         Some("changelog") => Msg::PageChange(Page::Changelog),
         _ => Msg::PageChange(Page::Main),

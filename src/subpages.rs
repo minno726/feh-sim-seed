@@ -10,7 +10,7 @@ fn header() -> Node<Msg> {
         a![
             "Back",
             attrs! [
-                At::Href => "/fehstatsim/";
+                At::Href => "/";
             ]
         ],
     ]

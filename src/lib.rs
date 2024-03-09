@@ -296,7 +296,7 @@ fn update(msg: Msg, model: &mut Model, orders: &mut impl Orders<Msg>) {
             model.curr_page = page;
         }
         Msg::Permalink => {
-            let url = seed::Url::new(vec!["/"]).search(&format!(
+            let url = seed::Url::new(vec![""]).search(&format!(
                 "v=3&banner={}&goal={}&run=1",
                 base64::encode(&bincode::serialize(&model.banner).unwrap()),
                 base64::encode(&bincode::serialize(&model.goal).unwrap())

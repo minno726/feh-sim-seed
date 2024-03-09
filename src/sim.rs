@@ -5,7 +5,7 @@ use rand::distributions::Distribution;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 
-use weighted_choice::{WeightedIndex4, WeightedIndex5};
+use weighted_choice::{WeightedIndex4, WeightedIndex6};
 
 use goal::{CustomGoal, GoalKind};
 
@@ -36,9 +36,9 @@ pub struct Sim {
 /// Precalculated tables for the probabilities of units being randomly chosen.
 #[derive(Debug, Copy, Clone, Default)]
 struct RandTables {
-    pool_sizes: [[u8; 4]; 5],
-    pool_dists: [WeightedIndex5; 26],
-    color_dists: [WeightedIndex4; 5],
+    pool_sizes: [[u8; 4]; 6],
+    pool_dists: [WeightedIndex6; 26],
+    color_dists: [WeightedIndex4; 6],
 }
 
 /// Scratch space for representing the goal in a way that is faster to work with.
@@ -81,6 +81,7 @@ impl Sim {
             [0, 0, 0, 0],
             [26, 19, 14, 17],
             [0, 0, 0, 0],
+            [69, 56, 45, 34],
             [45, 46, 37, 50],
             [45, 46, 37, 50],
         ];
@@ -91,13 +92,13 @@ impl Sim {
             self.tables.pool_sizes[2][color as usize] = 1;
         }
 
-        for color in 0..5 {
-            self.tables.color_dists[color] = WeightedIndex4::new(self.tables.pool_sizes[color]);
+        for pool in 0..6 {
+            self.tables.color_dists[pool] = WeightedIndex4::new(self.tables.pool_sizes[pool]);
         }
 
         for pity_incr in 0..26 {
             self.tables.pool_dists[pity_incr] =
-                WeightedIndex5::new(self.probabilities(pity_incr as u32));
+                WeightedIndex6::new(self.probabilities(pity_incr as u32));
         }
     }
 
@@ -196,6 +197,7 @@ impl Sim {
             || sample.0 == Pool::Fourstar
             || sample.0 == Pool::Fivestar
             || (sample.0 == Pool::FourstarFocus && !self.goal_data.is_fourstar_focus)
+            || sample.0 == Pool::FourstarSpecial
             || !self.goal_data.color_needed[color as usize]
         {
             return PullOrbResult {
@@ -255,7 +257,7 @@ impl Sim {
 
     /// Calculates the actual probabilities of selecting a unit from each of the four
     /// possible pools after a certain number of rate increases.
-    fn probabilities(&self, pity_incr: u32) -> [f32; 5] {
+    fn probabilities(&self, pity_incr: u32) -> [f32; 6] {
         let bases = self.bases();
         let pity_pct = if pity_incr >= 25 {
             100.0 - bases[Pool::Focus as usize] - bases[1]
@@ -269,29 +271,31 @@ impl Sim {
         probabilities[Pool::Focus as usize] += pity_pct * focus_ratio;
         probabilities[Pool::Fivestar as usize] += pity_pct * (1.0 - focus_ratio);
 
-        let lower_ratio = bases[Pool::Fourstar as usize]
-            / (bases[Pool::Fourstar as usize] + bases[Pool::Threestar as usize]);
-        probabilities[Pool::Fourstar as usize] -= pity_pct * lower_ratio;
-        probabilities[Pool::Threestar as usize] -= pity_pct * (1.0 - lower_ratio);
+        let lower_dem = bases[Pool::FourstarFocus as usize] + bases[Pool::FourstarSpecial as usize]
+                        + bases[Pool::Fourstar as usize] + bases[Pool::Threestar as usize];
+        probabilities[Pool::FourstarFocus as usize] -= pity_pct * bases[Pool::FourstarFocus as usize] / lower_dem;
+        probabilities[Pool::FourstarSpecial as usize] -= pity_pct * bases[Pool::FourstarSpecial as usize] / lower_dem;
+        probabilities[Pool::Fourstar as usize] -= pity_pct * bases[Pool::Fourstar as usize] / lower_dem;
+        probabilities[Pool::Threestar as usize] -= pity_pct * bases[Pool::Threestar as usize] / lower_dem;
         probabilities
     }
 
     /// Gives the base probabilities of selecting a unit from each pool.
-    fn bases(&self) -> [f32; 5] {
+    fn bases(&self) -> [f32; 6] {
         let (focus, fivestar) = self.banner.starting_rates;
         if self.banner.fourstar_focus.is_some() {
-            [3.0, 3.0, 3.0, 55.0, 36.0]
+            [3.0, 3.0, 3.0, 3.0, 52.0, 36.0]
         } else if (focus, fivestar) == (6, 0) {
             // The lower-rarity breakdown on this new banner is different
             // for no apparent reason
-            [6.0, 0.0, 0.0, 60.0, 34.0]
+            [6.0, 0.0, 0.0, 3.0, 57.0, 34.0]
         } else {
             let focus = focus as f32;
             let fivestar = fivestar as f32;
-            let fivestar_total = focus + fivestar;
-            let fourstar = (100.0 - fivestar_total) * 58.0 / 94.0;
-            let threestar = (100.0 - fivestar_total) * 36.0 / 94.0;
-            [focus, fivestar, 0.0, fourstar, threestar]
+            let fivestar_total = focus + fivestar + 3.0;
+            let fourstar = (100.0 - fivestar_total) * 55.0 / 91.0;
+            let threestar = (100.0 - fivestar_total) * 36.0 / 91.0;
+            [focus, fivestar, 0.0, 3.0, fourstar, threestar]
         }
     }
 }

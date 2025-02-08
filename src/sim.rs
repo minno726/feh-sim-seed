@@ -148,9 +148,6 @@ impl Sim {
             }
             if self.banner.focus_charges {
                 focus_charges = (focus_charges + nonfocus_count).min(3);
-                if got_focus {
-                    focus_charges = 0;
-                }
             }
             orb_count += Sim::orb_cost(chosen_count);
             if self.goal_data.is_met() {

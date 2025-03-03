@@ -10,11 +10,11 @@ crate-type = ["cdylib"]
 
 [dependencies]
 seed = "0.6.0"
-wasm-bindgen = "0.2.58"
+wasm-bindgen = "0.2.89"
 futures = "0.3.4"
 strum = "0.17.1"
 strum_macros = "0.17.1"
-serde = "1.0.104"
+serde = "1.0.113"
 base64 = "0.11.0"
 bincode = "1.2.1"
 
@@ -26,6 +26,9 @@ features = ["wasm-bindgen", "std", "small_rng"]
 [dependencies.web-sys]
 version = "0.3.35"
 features = ["Performance", "SvgsvgElement", "Element", "DomRect"]
+
+[patch.crates-io]
+seed = { git = "https://github.com/DTM9025/seed", rev="a36656d32909238830f7fce564e5f561f1f0878d" }
 
 [profile.release]
 lto = true
